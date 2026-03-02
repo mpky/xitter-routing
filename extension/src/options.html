@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>X to xcancel Redirect</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f1e8;
+        --panel: #fffaf0;
+        --border: #d6ccb8;
+        --text: #1c1917;
+        --accent: #0f766e;
+        --muted: #57534e;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top right, rgba(15, 118, 110, 0.14), transparent 35%),
+          linear-gradient(180deg, var(--bg), #efe7d6);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 42rem;
+        margin: 3rem auto;
+        padding: 2rem;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 1.5rem;
+        box-shadow: 0 16px 40px rgba(28, 25, 23, 0.08);
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 2rem;
+        line-height: 1.1;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      input[type="checkbox"] {
+        width: 1.1rem;
+        height: 1.1rem;
+        accent-color: var(--accent);
+      }
+
+      .field {
+        margin-top: 1.5rem;
+      }
+
+      .field label {
+        display: block;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+      }
+
+      select {
+        width: 100%;
+        max-width: 20rem;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      #status {
+        min-height: 1.5rem;
+        margin-top: 1rem;
+        color: var(--accent);
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <h1>X to xcancel Redirect</h1>
+        <p>
+          When enabled, the extension rewrites top-level browser navigations from
+          <code>x.com</code> and <code>twitter.com</code> onto <code>xcancel.com</code>.
+        </p>
+        <label for="enabled">
+          <input id="enabled" type="checkbox">
+          Enable redirect
+        </label>
+        <div class="field">
+          <label for="redirect-mode">Redirect mode</label>
+          <select id="redirect-mode">
+            <option value="status-only">Status links only</option>
+            <option value="all">All X/Twitter URLs</option>
+          </select>
+          <p>
+            Use <strong>Status links only</strong> if you still want to browse
+            <code>x.com</code> intentionally without being pushed onto
+            <code>xcancel.com</code>.
+          </p>
+        </div>
+        <div id="status" aria-live="polite"></div>
+      </section>
+    </main>
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

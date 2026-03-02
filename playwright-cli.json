@@ -1,0 +1,21 @@
+{
+  "browser": {
+    "launchOptions": {
+      "headless": false,
+      "channel": "chrome",
+      "ignoreDefaultArgs": [
+        "--disable-extensions"
+      ],
+      "args": [
+        "--disable-extensions-except=/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/extension",
+        "--load-extension=/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/extension"
+      ]
+    },
+    "contextOptions": {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      }
+    }
+  }
+}
