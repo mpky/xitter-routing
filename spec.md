@@ -262,19 +262,30 @@ FR-mac-6. Optional helper app can accept a URL from Services, clipboard, or manu
 - Rewrites URL using shared rewriter
 - Opens rewritten URL in default browser
 
-### 4.5.5 Initial Quick Action Implementation
+### 4.5.5 Quick Action Helper Implementation
 
 - Repo-owned helper script: `scripts/open-via-xcancel.mjs`
+- Automator-friendly wrapper script: `scripts/open-via-xcancel-quick-action.zsh`
 - Input sources:
   - selected text passed as arguments from Automator
   - stdin
   - clipboard fallback
+- Input precedence:
+  - arguments
+  - stdin
+  - clipboard
 - Rewrite behavior:
   - explicit Quick Action invocation uses "rewrite all supported X/Twitter URLs"
   - existing `xcancel.com` URLs are passed through unchanged
+- CLI behavior:
+  - invalid options fail with a non-zero exit code
+  - missing or unsupported URLs fail safely with a non-zero exit code
 - Browser target:
   - Google Chrome by default
   - optional override to use the system default browser
+- Test coverage:
+  - pure URL extraction and rewrite helpers
+  - CLI argument parsing, input-source selection, and browser-open behavior
 
 ## 4.6 UX Flows
 
@@ -313,7 +324,7 @@ NFR-mac-4. Optional native helper should be lightweight and not run privileged b
 - macOS Safari Web Extension project
 - Shared rewriter module
 - Unit tests for rewrite logic
-- Optional native helper prototype
+- Repo-owned Quick Action helper and wrapper
 - README with install and usage instructions
 
 ---

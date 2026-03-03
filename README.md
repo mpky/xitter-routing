@@ -12,6 +12,7 @@ This repository currently contains the macOS browser-extension route described i
 - Toolbar button support for rewriting the current page on demand
 - Context menu items for opening a link or page via xcancel
 - A minimal options page with enable/disable and redirect-mode controls
+- A repo-owned macOS Quick Action helper with CLI-level tests
 
 ## Project layout
 
@@ -23,9 +24,12 @@ This repository currently contains the macOS browser-extension route described i
 - `extension/src/options.html`: options page
 - `extension/src/options.js`: options page behavior
 - `scripts/open-via-xcancel.mjs`: macOS helper entry point for Quick Actions
+- `scripts/open-via-xcancel-quick-action.zsh`: Automator-friendly wrapper for the helper
 - `scripts/lib/open-via-xcancel.js`: Quick Action parsing and rewrite helpers
+- `scripts/lib/quick-action-cli.js`: Quick Action CLI behavior and input selection
 - `tests/rewriter.test.js`: Node-based unit tests
 - `tests/open-via-xcancel.test.js`: Quick Action helper tests
+- `tests/open-via-xcancel-cli.test.js`: Quick Action CLI behavior tests
 
 ## Local testing
 
@@ -33,6 +37,12 @@ Run the unit tests:
 
 ```bash
 npm test
+```
+
+Run only the Quick Action helper tests:
+
+```bash
+npm run test:quick-action
 ```
 
 Load the extension in a Chromium-based browser for fast iteration:
@@ -86,15 +96,18 @@ The repo now includes a helper script for the non-browser fallback path:
 By default it:
 
 - accepts text or URLs from arguments, stdin, or the clipboard
+- prefers input sources in this order: arguments, stdin, clipboard
 - finds the first supported `x.com`, `twitter.com`, or `xcancel.com` URL
 - rewrites X/Twitter URLs to `xcancel.com`
 - opens the result in Google Chrome
+- exits non-zero on invalid options or when no supported URL is found
 
 Useful options:
 
 ```bash
 /Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs --print-only "x.com/jack"
 /Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs --browser default "x.com/jack/status/20"
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs --help
 ```
 
 ### Automator Quick Action setup
@@ -108,7 +121,7 @@ Useful options:
 7. Paste this command:
 
 ```zsh
-/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs "$@"
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel-quick-action.zsh "$@"
 ```
 
 8. Save it as `Open via xcancel`.
