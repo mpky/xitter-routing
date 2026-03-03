@@ -22,7 +22,10 @@ This repository currently contains the macOS browser-extension route described i
 - `extension/src/storage.js`: settings helpers
 - `extension/src/options.html`: options page
 - `extension/src/options.js`: options page behavior
+- `scripts/open-via-xcancel.mjs`: macOS helper entry point for Quick Actions
+- `scripts/lib/open-via-xcancel.js`: Quick Action parsing and rewrite helpers
 - `tests/rewriter.test.js`: Node-based unit tests
+- `tests/open-via-xcancel.test.js`: Quick Action helper tests
 
 ## Local testing
 
@@ -71,3 +74,43 @@ If Safari-specific wrapper work is needed next, the likely follow-up is:
 1. convert the `extension/` directory into a Safari Web Extension container
 2. run the extension in Safari on macOS
 3. verify whether any Safari API differences require a small compatibility pass
+
+## macOS Quick Action
+
+The repo now includes a helper script for the non-browser fallback path:
+
+```bash
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs "https://x.com/jack/status/20"
+```
+
+By default it:
+
+- accepts text or URLs from arguments, stdin, or the clipboard
+- finds the first supported `x.com`, `twitter.com`, or `xcancel.com` URL
+- rewrites X/Twitter URLs to `xcancel.com`
+- opens the result in Google Chrome
+
+Useful options:
+
+```bash
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs --print-only "x.com/jack"
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs --browser default "x.com/jack/status/20"
+```
+
+### Automator Quick Action setup
+
+1. Open `Automator`.
+2. Create a new `Quick Action`.
+3. Set `Workflow receives current` to `text` in `any application`.
+4. Set `Input is` to `as arguments`.
+5. Add `Run Shell Script`.
+6. Use `/bin/zsh` as the shell.
+7. Paste this command:
+
+```zsh
+/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/scripts/open-via-xcancel.mjs "$@"
+```
+
+8. Save it as `Open via xcancel`.
+
+That gives you a native macOS Quick Action you can run from selected text, Services, or a keyboard shortcut.
