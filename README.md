@@ -45,6 +45,12 @@ Run only the Quick Action helper tests:
 npm run test:quick-action
 ```
 
+Refresh the extension build stamp shown in the options page:
+
+```bash
+npm run stamp:build
+```
+
 Load the extension in a Chromium-based browser for fast iteration:
 
 1. Open the browser extension management page.
@@ -68,22 +74,6 @@ You can also test the manual browser controls:
 1. Click the toolbar button while you are on an `x.com` or `twitter.com` page.
 2. Right-click a matching link and choose `Open link via xcancel`.
 3. Right-click an open X/Twitter page and choose `Open page via xcancel`.
-
-## Safari on macOS
-
-Safari packaging is expected to happen through Safari Web Extension tooling on a Mac with Xcode support installed.
-
-The code here is organized so the redirect logic is browser-agnostic:
-
-- the rewrite rules live in one pure module
-- the background worker is a standard WebExtension entry point
-- settings are stored through the extension storage API
-
-If Safari-specific wrapper work is needed next, the likely follow-up is:
-
-1. convert the `extension/` directory into a Safari Web Extension container
-2. run the extension in Safari on macOS
-3. verify whether any Safari API differences require a small compatibility pass
 
 ## macOS Quick Action
 

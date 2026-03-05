@@ -91,6 +91,13 @@
         color: var(--accent);
         font-size: 0.95rem;
       }
+
+      #build-stamp {
+        margin-top: 1rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.45;
+      }
     </style>
   </head>
   <body>
@@ -118,6 +125,7 @@
           </p>
         </div>
         <div id="status" aria-live="polite"></div>
+        <div id="build-stamp"></div>
       </section>
     </main>
     <script type="module" src="./options.js"></script>

@@ -213,8 +213,8 @@ This is different from iOS because macOS gives more room for helper-app UX, Serv
 ## 4.3 Recommended Architecture
 
 Primary path:
-- Safari Web Extension first
-- Optional Chrome/Firefox ports later
+- Chrome WebExtension (Manifest V3)
+- Optional Firefox port later
 
 Optional helper path:
 - Small native macOS app or menu bar utility
@@ -245,8 +245,8 @@ FR-mac-6. Optional helper app can accept a URL from Services, clipboard, or manu
 
 ### 4.5.2 Browser Navigation Interceptor
 
-- Safari extension first
-- Later ports to Chromium/Firefox if needed
+- Chrome extension first
+- Later ports to Firefox if needed
 - Responsible for top-level redirects once a browser receives the URL
 
 ### 4.5.3 Config Store
@@ -321,7 +321,7 @@ NFR-mac-4. Optional native helper should be lightweight and not run privileged b
 
 ## 4.9 Deliverables
 
-- macOS Safari Web Extension project
+- macOS Chrome extension project
 - Shared rewriter module
 - Unit tests for rewrite logic
 - Repo-owned Quick Action helper and wrapper
@@ -366,7 +366,7 @@ M5. Write setup notes covering Safari default browser and extension enablement
 
 ### macOS
 
-M6. Build Safari browser extension
+M6. Build Chrome browser extension (Manifest V3)
 
 M7. Evaluate optional native helper or Quick Action prototype
 
@@ -379,4 +379,4 @@ M8. Write installation and usage notes
 - iOS and macOS are separate tools, not one shared architecture.
 - iOS cannot promise fully transparent interception from iMessage, Signal, or WhatsApp while the X app remains installed.
 - The iOS product therefore includes a first-class manual fallback.
-- macOS should keep the browser extension as the default architecture, but it may add a native helper because desktop entry points are more flexible.
+- macOS should keep the Chrome extension as the default architecture, but it may add a native helper because desktop entry points are more flexible.
