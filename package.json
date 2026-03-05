@@ -6,7 +6,9 @@
   "scripts": {
     "test": "node --test",
     "test:quick-action": "node --test tests/open-via-xcancel*.test.js",
+    "test:extension-cli": "node --test tests/validate-extension-cli.test.js",
     "stamp:build": "node scripts/generate-build-info.mjs",
-    "quick-action:print": "node scripts/open-via-xcancel.mjs --print-only"
+    "quick-action:print": "node scripts/open-via-xcancel.mjs --print-only",
+    "validate:extension": "node scripts/validate-extension.mjs"
   }
 }
