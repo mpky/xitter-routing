@@ -45,13 +45,18 @@ export async function setSettings(nextSettings) {
     return;
   }
 
+  const mergedSettings = {
+    ...(await getSettings()),
+    ...nextSettings
+  };
+
   if (browserApi?.storage?.local) {
-    await browserApi.storage.local.set(nextSettings);
+    await browserApi.storage.local.set(mergedSettings);
     return;
   }
 
   await new Promise((resolve, reject) => {
-    chromeApi.storage.local.set(nextSettings, () => {
+    chromeApi.storage.local.set(mergedSettings, () => {
       const error = chromeApi.runtime?.lastError;
 
       if (error) {

@@ -1,89 +1,26 @@
-(function redirectCurrentPage() {
-  const browserApi = globalThis.browser ?? null;
-  const chromeApi = globalThis.chrome ?? null;
-  const targetHosts = new Set([
-    "x.com",
-    "www.x.com",
-    "mobile.x.com",
-    "twitter.com",
-    "www.twitter.com",
-    "mobile.twitter.com"
-  ]);
+(async function redirectCurrentPage() {
+  const extensionApi = globalThis.browser ?? globalThis.chrome
 
-  async function getRedirectSettings() {
-    if (browserApi?.storage?.local) {
-      return browserApi.storage.local.get({
-        enabled: true,
-        redirectMode: "status-only"
-      });
-    }
-
-    if (chromeApi?.storage?.local) {
-      return new Promise((resolve, reject) => {
-        chromeApi.storage.local.get({
-          enabled: true,
-          redirectMode: "status-only"
-        }, (items) => {
-          const error = chromeApi.runtime?.lastError;
-
-          if (error) {
-            reject(new Error(error.message));
-            return;
-          }
-
-          resolve(items);
-        });
-      });
-    }
-
-    return {
-      enabled: true,
-      redirectMode: "status-only"
-    };
+  if (!extensionApi?.runtime?.getURL) {
+    return
   }
 
-  function shouldRewritePath(pathname, redirectMode) {
-    if (redirectMode === "all") {
-      return true;
-    }
+  const [{ getSettings }, { rewriteUrl }] = await Promise.all([
+    import(extensionApi.runtime.getURL("src/storage.js")),
+    import(extensionApi.runtime.getURL("src/shared/rewriter.js"))
+  ])
 
-    return /^\/(?:i\/status\/\d+|[^/]+\/status\/\d+)(?:\/.*)?$/i.test(pathname);
+  const settings = await getSettings()
+
+  if (settings.enabled === false) {
+    return
   }
 
-  async function run() {
-    const currentUrl = window.location.href;
-    const currentHostname = window.location.hostname.trim().toLowerCase();
+  const rewrittenUrl = rewriteUrl(window.location.href, {
+    redirectMode: settings.redirectMode
+  })
 
-    if (!targetHosts.has(currentHostname)) {
-      return;
-    }
-
-    const settings = await getRedirectSettings();
-
-    if (settings.enabled === false) {
-      return;
-    }
-
-    if (!shouldRewritePath(window.location.pathname, settings.redirectMode)) {
-      return;
-    }
-
-    let rewrittenUrl;
-
-    try {
-      const parsedUrl = new URL(currentUrl);
-      parsedUrl.protocol = "https:";
-      parsedUrl.hostname = "xcancel.com";
-      parsedUrl.port = "";
-      rewrittenUrl = parsedUrl.toString();
-    } catch {
-      return;
-    }
-
-    if (rewrittenUrl !== currentUrl) {
-      window.location.replace(rewrittenUrl);
-    }
+  if (rewrittenUrl && rewrittenUrl !== window.location.href) {
+    window.location.replace(rewrittenUrl)
   }
-
-  run().catch(() => {});
-})();
+})().catch(() => {})
