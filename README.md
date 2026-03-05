@@ -1,4 +1,4 @@
-![X Routing banner](./xdoubt.png)
+<img src="./xdoubt.png" alt="X Routing banner" width="420">
 
 # X to xcancel Redirect
 
