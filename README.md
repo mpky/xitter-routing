@@ -1,3 +1,5 @@
+![X Routing banner](./xdoubt.png)
+
 # X to xcancel Redirect
 
 This repository currently contains the macOS browser-extension route described in `spec.md`.
