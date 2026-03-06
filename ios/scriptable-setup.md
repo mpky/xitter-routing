@@ -41,28 +41,14 @@ Create a new Shortcut named `Open via xcancel` with these settings:
 4. Enable `Show in Share Sheet`.
 5. Set `Accepted Types` to at least `URLs` and `Text`.
 
-Add these actions in order:
+Add one action:
 
-1. `Get Text from Input`
-   Use `Shortcut Input`
-2. `Run Script`
+1. `Run Script`
    Configure:
    - `Script`: `Open via xcancel`
-   - `Parameter`: the output of step 1
-3. `URL`
-   Use the output of step 2
-4. `Open URLs`
-   Use the output of step 3
+   - `Parameter`: `Shortcut Input`
 
-That is the whole Shortcut.
-
-Why this structure:
-
-- the Share Sheet may pass rich text, HTML files, or mixed metadata
-- `Get Text from Input` converts whatever arrives into plain text containing the URL
-- the Scriptable script extracts the first supported URL from that text
-- the `URL` action converts the returned text into a URL object
-- `Open URLs` opens it reliably
+That is the whole Shortcut. The Scriptable script handles URL extraction and opens Safari directly.
 
 ## Recommended Checks
 

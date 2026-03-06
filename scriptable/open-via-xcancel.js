@@ -207,11 +207,6 @@ async function main() {
     return
   }
 
-  if (isShortcutContext()) {
-    Script.setShortcutOutput(finalUrl)
-    return
-  }
-
   Safari.open(finalUrl)
 }
 
