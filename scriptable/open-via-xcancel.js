@@ -131,16 +131,32 @@ async function showAlert(title, message) {
   await alert.present()
 }
 
+function isShortcutContext() {
+  return Boolean(config.runsWithSiri || args.shortcutParameter !== null)
+}
+
+async function fail(message) {
+  if (isShortcutContext()) {
+    Script.setShortcutOutput(message)
+    return
+  }
+
+  await showAlert("Open via xcancel", message)
+}
+
 async function main() {
   const inputText = resolveInputText()
   const finalUrl = rewriteStatusUrl(inputText)
 
   if (!finalUrl) {
-    await showAlert(
-      "Open via xcancel",
+    await fail(
       "No supported X, Twitter, or xcancel URL was found in the shared input or clipboard."
     )
     return
+  }
+
+  if (isShortcutContext()) {
+    Script.setShortcutOutput(finalUrl)
   }
 
   Safari.open(finalUrl)
