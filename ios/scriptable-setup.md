@@ -43,27 +43,24 @@ Create a new Shortcut named `Open via xcancel` with these settings:
 
 Add these actions in order:
 
-1. `Get URLs from Input`
+1. `Get Text from Input`
    Use `Shortcut Input`
-2. `Get Item from List`
-   Use `First Item` from the output of step 1
-3. `Run Script`
+2. `Run Script`
    Configure:
    - `Script`: `Open via xcancel`
-   - `Parameter`: the output of step 2
-4. `URL`
+   - `Parameter`: the output of step 1
+3. `URL`
+   Use the output of step 2
+4. `Open URLs`
    Use the output of step 3
-5. `Open URLs`
-   Use the output of step 4
 
 That is the whole Shortcut.
 
 Why this structure:
 
-- the Share Sheet may pass rich text or mixed metadata, not a clean URL
-- `Get URLs from Input` normalizes that into actual URL values
-- `Get Item from List` picks the first one
-- Scriptable receives a clean URL string and returns the rewritten URL
+- the Share Sheet may pass rich text, HTML files, or mixed metadata
+- `Get Text from Input` converts whatever arrives into plain text containing the URL
+- the Scriptable script extracts the first supported URL from that text
 - the `URL` action converts the returned text into a URL object
 - `Open URLs` opens it reliably
 
