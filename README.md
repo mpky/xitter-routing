@@ -2,7 +2,7 @@
 
 # X to xcancel Redirect
 
-This repository currently contains the macOS browser-extension route described in `spec.md`.
+This repository currently contains the macOS browser-extension route plus a Shortcut-first iOS fallback.
 
 ## What is implemented
 
@@ -15,6 +15,7 @@ This repository currently contains the macOS browser-extension route described i
 - Context menu items for opening a link or page via xcancel
 - A minimal options page with enable/disable and redirect-mode controls
 - A repo-owned macOS Quick Action helper with CLI-level tests
+- A documented iOS Share Sheet Shortcut recipe for manual `xcancel` opens
 
 ## Project layout
 
@@ -29,6 +30,7 @@ This repository currently contains the macOS browser-extension route described i
 - `scripts/open-via-xcancel-quick-action.zsh`: Automator-friendly wrapper for the helper
 - `scripts/lib/open-via-xcancel.js`: Quick Action parsing and rewrite helpers
 - `scripts/lib/quick-action-cli.js`: Quick Action CLI behavior and input selection
+- `shortcuts/ios-open-via-xcancel.md`: iOS Shortcut recipe and setup steps
 - `tests/rewriter.test.js`: Node-based unit tests
 - `tests/open-via-xcancel.test.js`: Quick Action helper tests
 - `tests/open-via-xcancel-cli.test.js`: Quick Action CLI behavior tests
@@ -144,3 +146,24 @@ Useful options:
 8. Save it as `Open via xcancel`.
 
 That gives you a native macOS Quick Action you can run from selected text, Services, or a keyboard shortcut.
+
+## iOS Shortcut
+
+The current iOS path is Shortcut-first rather than Safari-extension-first.
+
+Use the Share Sheet Shortcut recipe in [shortcuts/ios-open-via-xcancel.md](/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/shortcuts/ios-open-via-xcancel.md).
+
+That route is meant for cases where:
+
+- a link opens inside an app's in-app browser
+- Safari extensions are not part of the current scope
+- you want a manual `Open via xcancel` action from iPhone or iPad
+
+The Shortcut recipe:
+
+- accepts shared URLs or text
+- rewrites supported `x.com` and `twitter.com` status links to `xcancel.com`
+- preserves path, query, and fragment
+- opens the rewritten URL in Safari
+
+It is manual and share-sheet-driven, not a global tap interceptor. By default it leaves non-status X/Twitter URLs alone.
