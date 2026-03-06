@@ -207,6 +207,15 @@ async function main() {
     return
   }
 
+  if (isShortcutContext()) {
+    try {
+      Safari.openInApp(finalUrl, false)
+    } catch {
+      Script.setShortcutOutput(finalUrl)
+    }
+    return
+  }
+
   Safari.open(finalUrl)
 }
 
