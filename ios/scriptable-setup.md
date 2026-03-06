@@ -49,10 +49,16 @@ Add these actions:
    Configure:
    - `Script`: `Open via xcancel`
    - `Parameter`: the output of the `Text` action
+3. `Open URLs`
+   Configure it to open the output of the `Run Script` action
 
 That is the whole Shortcut.
 
-If your Shortcuts version exposes `Run Script` differently, the key idea is the same: pass the Share Sheet input into the Scriptable script as its parameter.
+If your Shortcuts version exposes `Run Script` differently, the key idea is the same:
+
+- pass the Share Sheet input into the Scriptable script as its parameter
+- let the script return the final URL
+- let Shortcuts open that URL in the next action
 
 ## Recommended Checks
 
