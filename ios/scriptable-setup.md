@@ -41,24 +41,31 @@ Create a new Shortcut named `Open via xcancel` with these settings:
 4. Enable `Show in Share Sheet`.
 5. Set `Accepted Types` to at least `URLs` and `Text`.
 
-Add these actions:
+Add these actions in order:
 
-1. `Text`
+1. `Get URLs from Input`
    Use `Shortcut Input`
-2. `Run Script`
+2. `Get Item from List`
+   Use `First Item` from the output of step 1
+3. `Run Script`
    Configure:
    - `Script`: `Open via xcancel`
-   - `Parameter`: the output of the `Text` action
-3. `Open URLs`
-   Configure it to open the output of the `Run Script` action
+   - `Parameter`: the output of step 2
+4. `URL`
+   Use the output of step 3
+5. `Open URLs`
+   Use the output of step 4
 
 That is the whole Shortcut.
 
-If your Shortcuts version exposes `Run Script` differently, the key idea is the same:
+Why this structure:
 
-- pass the Share Sheet input into the Scriptable script as its parameter
-- let the script return the final URL
-- let Shortcuts open that URL in the next action
+- the Share Sheet may pass rich text or mixed metadata, not a clean URL
+- `Get URLs from Input` normalizes that into actual URL values
+- `Get Item from List` picks the first one
+- Scriptable receives a clean URL string and returns the rewritten URL
+- the `URL` action converts the returned text into a URL object
+- `Open URLs` opens it reliably
 
 ## Recommended Checks
 
