@@ -71,8 +71,12 @@ function extractFirstSupportedUrl(text) {
 function resolveInputText() {
   const shortcutInput = args.shortcutParameter
 
-  if (typeof shortcutInput === "string" && shortcutInput.trim() !== "") {
-    return shortcutInput
+  if (shortcutInput !== null && shortcutInput !== undefined) {
+    const normalizedShortcutInput = String(shortcutInput).trim()
+
+    if (normalizedShortcutInput !== "") {
+      return normalizedShortcutInput
+    }
   }
 
   if (args.plainTexts?.length) {
