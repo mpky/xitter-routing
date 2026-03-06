@@ -21,15 +21,25 @@ async function pathExists(pathname) {
   try {
     await stat(pathname)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return false
+    }
+
+    throw error
   }
 }
+
+let bootstrappedPlaywrightRoot = null
 
 async function ensurePlaywrightImport() {
   try {
     return await import("playwright")
-  } catch {
+  } catch (error) {
+    if (error.code !== "ERR_MODULE_NOT_FOUND" && error.code !== "MODULE_NOT_FOUND") {
+      throw error
+    }
+
     const packageRoot = await mkdtemp(join(os.tmpdir(), "xitter-routing-playwright-"))
 
     try {
@@ -40,12 +50,14 @@ async function ensurePlaywrightImport() {
         packageRoot,
         `playwright@${PLAYWRIGHT_VERSION}`
       ])
-      return await import(
+      const playwrightModule = await import(
         pathToFileURL(join(packageRoot, "node_modules", "playwright", "index.mjs")).href
       )
-    } catch (error) {
+      bootstrappedPlaywrightRoot = packageRoot
+      return playwrightModule
+    } catch (installError) {
       await rm(packageRoot, { force: true, recursive: true }).catch(() => {})
-      throw error
+      throw installError
     }
   }
 }
@@ -111,6 +123,13 @@ async function validateExtension({ expect, extensionPath, timeoutMs, url }) {
       }).catch(() => null)
     }
 
+    if (!extensionServiceWorker) {
+      process.stderr.write(
+        "Warning: extension service worker did not register within the timeout. " +
+        "The extension may have failed to load.\n"
+      )
+    }
+
     const page = await context.newPage()
     await page.goto(url, {
       timeout: timeoutMs,
@@ -159,8 +178,12 @@ async function main() {
       process.exit(1)
     }
   } catch (error) {
-    process.stderr.write(`${error.message}\n`)
+    process.stderr.write(`${error.stack ?? error.message}\n`)
     process.exit(1)
+  } finally {
+    if (bootstrappedPlaywrightRoot) {
+      await rm(bootstrappedPlaywrightRoot, { force: true, recursive: true }).catch(() => {})
+    }
   }
 }
 
