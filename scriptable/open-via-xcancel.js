@@ -1,6 +1,9 @@
 // Open via xcancel for Scriptable on iOS
 // Run from Scriptable directly or via a Shortcut that passes input text/URL.
 
+// Set to true to dump all input sources instead of redirecting.
+const DEBUG = true
+
 const TARGET_HOSTS = new Set([
   "x.com",
   "www.x.com",
@@ -68,29 +71,6 @@ function extractFirstSupportedUrl(text) {
   return null
 }
 
-function resolveInputText() {
-  const shortcutInput = args.shortcutParameter
-
-  if (shortcutInput !== null && shortcutInput !== undefined) {
-    const normalizedShortcutInput = String(shortcutInput).trim()
-
-    if (normalizedShortcutInput !== "") {
-      return normalizedShortcutInput
-    }
-  }
-
-  if (args.plainTexts?.length) {
-    return args.plainTexts.join("\n")
-  }
-
-  if (args.urls?.length) {
-    return String(args.urls[0])
-  }
-
-  const clipboardText = Pasteboard.pasteString()
-  return typeof clipboardText === "string" ? clipboardText : ""
-}
-
 function rewriteStatusUrl(rawInput) {
   const candidateUrl = extractFirstSupportedUrl(rawInput) ?? normalizeCandidateUrl(rawInput)
 
@@ -127,6 +107,41 @@ function rewriteStatusUrl(rawInput) {
   return parsedUrl.toString()
 }
 
+function collectInputCandidates() {
+  const candidates = []
+
+  const sp = args.shortcutParameter
+  if (sp !== null && sp !== undefined) {
+    const text = String(sp).trim()
+    if (text !== "") {
+      candidates.push({ source: "shortcutParameter", value: text })
+    }
+  }
+
+  if (args.urls?.length) {
+    for (const u of args.urls) {
+      candidates.push({ source: "args.urls", value: String(u) })
+    }
+  }
+
+  if (args.plainTexts?.length) {
+    for (const t of args.plainTexts) {
+      candidates.push({ source: "args.plainTexts", value: String(t) })
+    }
+  }
+
+  try {
+    const clip = Pasteboard.pasteString()
+    if (typeof clip === "string" && clip.trim() !== "") {
+      candidates.push({ source: "clipboard", value: clip })
+    }
+  } catch {
+    // clipboard may not be available
+  }
+
+  return candidates
+}
+
 async function showAlert(title, message) {
   const alert = new Alert()
   alert.title = title
@@ -149,9 +164,29 @@ async function fail(message) {
 }
 
 async function main() {
-  const inputText = resolveInputText()
+  const candidates = collectInputCandidates()
 
-  const finalUrl = rewriteStatusUrl(inputText)
+  if (DEBUG) {
+    const dump = JSON.stringify(candidates.map(c => ({
+      source: c.source,
+      value: c.value.slice(0, 300)
+    })), null, 2)
+
+    if (isShortcutContext()) {
+      Script.setShortcutOutput("DEBUG:\n" + dump)
+      return
+    }
+
+    await showAlert("DEBUG", dump)
+    return
+  }
+
+  let finalUrl = null
+
+  for (const { value } of candidates) {
+    finalUrl = rewriteStatusUrl(value)
+    if (finalUrl) break
+  }
 
   if (!finalUrl) {
     await fail(
