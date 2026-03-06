@@ -2,7 +2,7 @@
 // Run from Scriptable directly or via a Shortcut that passes input text/URL.
 
 // Set to true to dump all input sources instead of redirecting.
-const DEBUG = true
+const DEBUG = false
 
 const TARGET_HOSTS = new Set([
   "x.com",
@@ -130,6 +130,14 @@ function collectInputCandidates() {
     }
   }
 
+  if (args.queryParameters) {
+    for (const [key, val] of Object.entries(args.queryParameters)) {
+      if (val) {
+        candidates.push({ source: "queryParam." + key, value: String(val) })
+      }
+    }
+  }
+
   try {
     const clip = Pasteboard.pasteString()
     if (typeof clip === "string" && clip.trim() !== "") {
@@ -172,12 +180,16 @@ async function main() {
       value: c.value.slice(0, 300)
     })), null, 2)
 
+    const fm = FileManager.iCloud()
+    const debugPath = fm.joinPath(fm.documentsDirectory(), "xcancel-debug.json")
+    fm.writeString(debugPath, dump)
+
     if (isShortcutContext()) {
       Script.setShortcutOutput("DEBUG:\n" + dump)
       return
     }
 
-    await showAlert("DEBUG", dump)
+    Script.complete()
     return
   }
 
