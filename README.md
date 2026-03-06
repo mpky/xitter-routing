@@ -1,4 +1,6 @@
-<img src="./xdoubt.png" alt="X Routing banner" width="420">
+<p align="center">
+  <img src="./xdoubt.png" alt="X Routing banner" width="420">
+</p>
 
 # X to xcancel Redirect
 
@@ -151,7 +153,7 @@ That gives you a native macOS Quick Action you can run from selected text, Servi
 
 The current iOS path is Shortcut-first rather than Safari-extension-first.
 
-Use the Share Sheet Shortcut recipe in [shortcuts/ios-open-via-xcancel.md](/Users/matthewpokorny/Desktop/projects/tools/xitter-routing/shortcuts/ios-open-via-xcancel.md).
+Use the Share Sheet Shortcut recipe in [shortcuts/ios-open-via-xcancel.md](./shortcuts/ios-open-via-xcancel.md).
 
 That route is meant for cases where:
 
