@@ -53,6 +53,31 @@ Refresh the extension build stamp shown in the options page:
 npm run stamp:build
 ```
 
+Run the Chrome extension validator:
+
+```bash
+npm run validate:extension
+```
+
+By default it:
+
+- launches Playwright's bundled Chromium with a fresh temporary profile
+- loads `extension/` as an unpacked extension
+- opens `https://x.com/jack/status/20`
+- waits for the redirect to `xcancel.com`
+- prints a JSON result and exits non-zero if validation fails
+
+Useful options:
+
+```bash
+node scripts/validate-extension.mjs --url "https://twitter.com/jack/status/20"
+node scripts/validate-extension.mjs --url "https://x.com/home" --expect no-redirect
+node scripts/validate-extension.mjs --timeout 20000
+node scripts/validate-extension.mjs --extension-path extension
+```
+
+If `playwright` is not already installed locally, the validator bootstraps it into a temporary directory before launching Chrome.
+
 Load the extension in a Chromium-based browser for fast iteration:
 
 1. Open the browser extension management page.

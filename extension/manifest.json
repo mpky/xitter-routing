@@ -33,6 +33,20 @@
       "run_at": "document_start"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/shared/rewriter.js",
+        "src/storage.js"
+      ],
+      "matches": [
+        "*://x.com/*",
+        "*://*.x.com/*",
+        "*://twitter.com/*",
+        "*://*.twitter.com/*"
+      ]
+    }
+  ],
   "options_ui": {
     "page": "src/options.html",
     "open_in_tab": true

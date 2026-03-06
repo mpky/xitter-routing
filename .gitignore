@@ -1,3 +1,4 @@
 .playwright-cli/
+.claude/
 AGENTS.md
 .DS_Store
