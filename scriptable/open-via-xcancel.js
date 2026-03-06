@@ -150,6 +150,10 @@ async function fail(message) {
 
 async function main() {
   const inputText = resolveInputText()
+
+  Script.setShortcutOutput("DEBUG input: [" + inputText + "]")
+  return
+
   const finalUrl = rewriteStatusUrl(inputText)
 
   if (!finalUrl) {
