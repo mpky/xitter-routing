@@ -5,7 +5,7 @@
     return
   }
 
-  const [{ getSettings }, { rewriteUrl }] = await Promise.all([
+  const [{ clearFallbackBypass, getSettings, hasFallbackBypass }, { rewriteUrl }] = await Promise.all([
     import(extensionApi.runtime.getURL("src/storage.js")),
     import(extensionApi.runtime.getURL("src/shared/rewriter.js"))
   ])
@@ -13,6 +13,11 @@
   const settings = await getSettings()
 
   if (settings.enabled === false) {
+    return
+  }
+
+  if (await hasFallbackBypass(window.location.href)) {
+    await clearFallbackBypass(window.location.href)
     return
   }
 

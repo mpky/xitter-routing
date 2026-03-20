@@ -1,5 +1,10 @@
 import { rewriteUrl } from "./shared/rewriter.js";
-import { DEFAULT_SETTINGS, getSettings, setSettings } from "./storage.js";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+  hasFallbackBypass,
+  setSettings
+} from "./storage.js";
 
 const extensionApi = globalThis.browser ?? globalThis.chrome;
 const browserApi = globalThis.browser ?? null;
@@ -97,6 +102,10 @@ async function shouldRedirect(url) {
   const settings = await getSettings();
 
   if (!settings.enabled) {
+    return null;
+  }
+
+  if (await hasFallbackBypass(url)) {
     return null;
   }
 

@@ -13,7 +13,9 @@
     "*://x.com/*",
     "*://*.x.com/*",
     "*://twitter.com/*",
-    "*://*.twitter.com/*"
+    "*://*.twitter.com/*",
+    "*://xcancel.com/*",
+    "*://*.xcancel.com/*"
   ],
   "background": {
     "service_worker": "src/background.js",
@@ -31,19 +33,32 @@
         "src/content-redirect.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://xcancel.com/*",
+        "*://*.xcancel.com/*"
+      ],
+      "js": [
+        "src/content-xcancel-fallback.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
         "src/shared/rewriter.js",
+        "src/shared/xcancel-fallback.js",
         "src/storage.js"
       ],
       "matches": [
         "*://x.com/*",
         "*://*.x.com/*",
         "*://twitter.com/*",
-        "*://*.twitter.com/*"
+        "*://*.twitter.com/*",
+        "*://xcancel.com/*",
+        "*://*.xcancel.com/*"
       ]
     }
   ],

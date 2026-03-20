@@ -112,3 +112,58 @@ test("setSettings fills in defaults when storage starts empty", async () => {
     redirectMode: "status-only"
   })
 })
+
+test("getSettings ignores internal fallback bypass state", async () => {
+  withBrowserStorage({
+    enabled: false,
+    redirectMode: "all",
+    fallbackBypasses: [
+      {
+        expiresAt: Date.now() + 1_000,
+        url: "https://x.com/someone/status/123"
+      }
+    ]
+  })
+  const { getSettings } = await importStorageModule()
+
+  assert.deepEqual(await getSettings(), {
+    enabled: false,
+    redirectMode: "all"
+  })
+})
+
+test("registerFallbackBypass stores a short-lived bypass that can be cleared", async () => {
+  const state = withBrowserStorage()
+  const {
+    clearFallbackBypass,
+    hasFallbackBypass,
+    registerFallbackBypass
+  } = await importStorageModule()
+  const trackedUrl = "https://x.com/someone/status/123?s=20"
+  const now = 10_000
+
+  await registerFallbackBypass(trackedUrl, now)
+
+  assert.equal(await hasFallbackBypass(trackedUrl, now + 100), true)
+  assert.equal(Array.isArray(state.fallbackBypasses), true)
+
+  await clearFallbackBypass(trackedUrl, now + 200)
+
+  assert.equal(await hasFallbackBypass(trackedUrl, now + 300), false)
+  assert.deepEqual(state.fallbackBypasses, [])
+})
+
+test("hasFallbackBypass drops expired entries", async () => {
+  const state = withBrowserStorage({
+    fallbackBypasses: [
+      {
+        expiresAt: 5_000,
+        url: "https://x.com/someone/status/123"
+      }
+    ]
+  })
+  const { hasFallbackBypass } = await importStorageModule()
+
+  assert.equal(await hasFallbackBypass("https://x.com/someone/status/123", 6_000), false)
+  assert.deepEqual(state.fallbackBypasses, [])
+})
