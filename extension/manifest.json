@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X to xcancel Redirect",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Redirect x.com and twitter.com links to xcancel.com.",
   "permissions": [
     "contextMenus",
