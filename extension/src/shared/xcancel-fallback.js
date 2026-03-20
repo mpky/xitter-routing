@@ -10,6 +10,16 @@ const PROTECTED_ACCOUNT_PATTERNS = [
   /only confirmed followers have access/i
 ]
 
+const VERIFICATION_PAGE_PATTERNS = [
+  /verifying your request/i,
+  /original twitter\/x link/i
+]
+
+const NOT_FOUND_PAGE_PATTERNS = [
+  /error\s*\|\s*xcancel/i,
+  /tweet not found/i
+]
+
 export function isXcancelHostname(hostname) {
   return XCANCEL_HOSTS.has(normalizeHostname(hostname))
 }
@@ -22,6 +32,26 @@ export function isProtectedAccountPage(page = {}) {
   }
 
   return PROTECTED_ACCOUNT_PATTERNS.every((pattern) => pattern.test(pageText))
+}
+
+export function isVerificationInterstitialPage(page = {}) {
+  const pageText = `${page.title ?? ""}\n${page.textContent ?? ""}`.trim()
+
+  if (pageText === "") {
+    return false
+  }
+
+  return VERIFICATION_PAGE_PATTERNS.every((pattern) => pattern.test(pageText))
+}
+
+export function isNotFoundErrorPage(page = {}) {
+  const pageText = `${page.title ?? ""}\n${page.textContent ?? ""}`.trim()
+
+  if (pageText === "") {
+    return false
+  }
+
+  return NOT_FOUND_PAGE_PATTERNS.every((pattern) => pattern.test(pageText))
 }
 
 export function getProtectedPostFallbackUrl(input) {
@@ -52,8 +82,16 @@ export function getProtectedPostFallbackUrl(input) {
   return parsedUrl.toString()
 }
 
+export function shouldFallbackFromXcancelPage(page = {}) {
+  return (
+    isProtectedAccountPage(page) ||
+    isVerificationInterstitialPage(page) ||
+    isNotFoundErrorPage(page)
+  )
+}
+
 export function getProtectedPostFallbackUrlForPage(input, page = {}) {
-  if (!isProtectedAccountPage(page)) {
+  if (!shouldFallbackFromXcancelPage(page)) {
     return null
   }
 
