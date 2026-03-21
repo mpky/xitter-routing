@@ -5,6 +5,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 export const FALLBACK_BYPASS_STORAGE_KEY = "fallbackBypasses"
 export const FALLBACK_BYPASS_TTL_MS = 60_000
+export const DIAGNOSTIC_LOG_STORAGE_KEY = "diagnosticLog"
+export const MAX_DIAGNOSTIC_LOG_ENTRIES = 50
 
 const browserApi = globalThis.browser ?? null
 const chromeApi = globalThis.chrome ?? null
@@ -79,6 +81,71 @@ function normalizeTrackedUrl(url) {
   } catch {
     return null
   }
+}
+
+function normalizeDiagnosticValue(value) {
+  if (typeof value !== "string") {
+    return value
+  }
+
+  const trimmed = value.trim()
+
+  if (trimmed === "") {
+    return ""
+  }
+
+  return trimmed.slice(0, 400)
+}
+
+function normalizeDiagnosticEntry(entry, fallbackTimestamp = Date.now()) {
+  if (!entry || typeof entry !== "object") {
+    return null
+  }
+
+  const timestamp = Number.isFinite(entry.timestamp)
+    ? entry.timestamp
+    : fallbackTimestamp
+  const source = normalizeDiagnosticValue(entry.source)
+  const action = normalizeDiagnosticValue(entry.action)
+
+  if (typeof source !== "string" || source === "") {
+    return null
+  }
+
+  if (typeof action !== "string" || action === "") {
+    return null
+  }
+
+  const normalizedEntry = {
+    timestamp,
+    source,
+    action
+  }
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (key === "timestamp" || key === "source" || key === "action") {
+      continue
+    }
+
+    const normalizedValue = normalizeDiagnosticValue(value)
+
+    if (normalizedValue !== undefined) {
+      normalizedEntry[key] = normalizedValue
+    }
+  }
+
+  return normalizedEntry
+}
+
+function getStoredDiagnosticLog(records) {
+  if (!Array.isArray(records)) {
+    return []
+  }
+
+  return records
+    .map((record) => normalizeDiagnosticEntry(record))
+    .filter(Boolean)
+    .slice(-MAX_DIAGNOSTIC_LOG_ENTRIES)
 }
 
 function getActiveFallbackBypasses(records, now = Date.now()) {
@@ -187,6 +254,39 @@ export async function clearFallbackBypass(url, now = Date.now()) {
 
   await setStorageItems({
     [FALLBACK_BYPASS_STORAGE_KEY]: remainingBypasses
+  })
+
+  return true
+}
+
+export async function getDiagnosticLog() {
+  const storedItems = await getStorageItems({
+    [DIAGNOSTIC_LOG_STORAGE_KEY]: []
+  })
+
+  return getStoredDiagnosticLog(storedItems[DIAGNOSTIC_LOG_STORAGE_KEY])
+}
+
+export async function appendDiagnosticLog(entry, now = Date.now()) {
+  const normalizedEntry = normalizeDiagnosticEntry(entry, now)
+
+  if (!normalizedEntry) {
+    return false
+  }
+
+  const currentLog = await getDiagnosticLog()
+  const nextLog = [...currentLog, normalizedEntry].slice(-MAX_DIAGNOSTIC_LOG_ENTRIES)
+
+  await setStorageItems({
+    [DIAGNOSTIC_LOG_STORAGE_KEY]: nextLog
+  })
+
+  return true
+}
+
+export async function clearDiagnosticLog() {
+  await setStorageItems({
+    [DIAGNOSTIC_LOG_STORAGE_KEY]: []
   })
 
   return true

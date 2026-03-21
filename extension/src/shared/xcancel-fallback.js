@@ -5,14 +5,16 @@ export const XCANCEL_HOSTS = new Set([
   "www.xcancel.com"
 ])
 
+export const DELAYED_ERROR_FALLBACK_MS = 2_000
+
 const PROTECTED_ACCOUNT_PATTERNS = [
   /this account'?s tweets are protected/i,
   /only confirmed followers have access/i
 ]
 
-const VERIFICATION_PAGE_PATTERNS = [
-  /verifying your request/i,
-  /original twitter\/x link/i
+const FORBIDDEN_PAGE_PATTERNS = [
+  /403 forbidden/i,
+  /access denied/i
 ]
 
 const NOT_FOUND_PAGE_PATTERNS = [
@@ -34,14 +36,17 @@ export function isProtectedAccountPage(page = {}) {
   return PROTECTED_ACCOUNT_PATTERNS.every((pattern) => pattern.test(pageText))
 }
 
-export function isVerificationInterstitialPage(page = {}) {
+export function isForbiddenErrorPage(page = {}) {
   const pageText = `${page.title ?? ""}\n${page.textContent ?? ""}`.trim()
 
   if (pageText === "") {
     return false
   }
 
-  return VERIFICATION_PAGE_PATTERNS.every((pattern) => pattern.test(pageText))
+  return (
+    /403 forbidden/i.test(pageText) ||
+    FORBIDDEN_PAGE_PATTERNS.every((pattern) => pattern.test(pageText))
+  )
 }
 
 export function isNotFoundErrorPage(page = {}) {
@@ -82,16 +87,54 @@ export function getProtectedPostFallbackUrl(input) {
   return parsedUrl.toString()
 }
 
-export function shouldFallbackFromXcancelPage(page = {}) {
-  return (
-    isProtectedAccountPage(page) ||
-    isVerificationInterstitialPage(page) ||
-    isNotFoundErrorPage(page)
-  )
+export function getFallbackReasonForXcancelPage(page = {}) {
+  if (isProtectedAccountPage(page)) {
+    return "protected-account"
+  }
+
+  if (isForbiddenErrorPage(page)) {
+    return "forbidden"
+  }
+
+  if (isNotFoundErrorPage(page)) {
+    return "not-found"
+  }
+
+  return null
 }
 
-export function getProtectedPostFallbackUrlForPage(input, page = {}) {
-  if (!shouldFallbackFromXcancelPage(page)) {
+export function getPageTextSnippet(page = {}, maxLength = 220) {
+  const pageText = `${page.title ?? ""}\n${page.textContent ?? ""}`
+    .replace(/\s+/g, " ")
+    .trim()
+
+  if (pageText === "") {
+    return ""
+  }
+
+  return pageText.slice(0, maxLength)
+}
+
+export function shouldFallbackFromXcancelPage(page = {}, options = {}) {
+  const {
+    delayedFallbackMs = DELAYED_ERROR_FALLBACK_MS,
+    elapsedMs = 0
+  } = options
+  const reason = getFallbackReasonForXcancelPage(page)
+
+  if (reason === "protected-account") {
+    return true
+  }
+
+  if (reason === "forbidden" || reason === "not-found") {
+    return elapsedMs >= delayedFallbackMs
+  }
+
+  return false
+}
+
+export function getProtectedPostFallbackUrlForPage(input, page = {}, options = {}) {
+  if (!shouldFallbackFromXcancelPage(page, options)) {
     return null
   }
 

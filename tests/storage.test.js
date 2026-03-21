@@ -167,3 +167,43 @@ test("hasFallbackBypass drops expired entries", async () => {
   assert.equal(await hasFallbackBypass("https://x.com/someone/status/123", 6_000), false)
   assert.deepEqual(state.fallbackBypasses, [])
 })
+
+test("appendDiagnosticLog stores recent normalized diagnostic entries", async () => {
+  const state = withBrowserStorage()
+  const { appendDiagnosticLog, getDiagnosticLog } = await importStorageModule()
+
+  await appendDiagnosticLog({
+    action: "fallback",
+    source: "xcancel-fallback",
+    textSnippet: "   403 Forbidden openresty   ",
+    timestamp: 123
+  })
+
+  assert.deepEqual(await getDiagnosticLog(), [
+    {
+      action: "fallback",
+      source: "xcancel-fallback",
+      textSnippet: "403 Forbidden openresty",
+      timestamp: 123
+    }
+  ])
+  assert.equal(Array.isArray(state.diagnosticLog), true)
+})
+
+test("clearDiagnosticLog removes persisted diagnostics", async () => {
+  const state = withBrowserStorage({
+    diagnosticLog: [
+      {
+        action: "observe",
+        source: "xcancel-fallback",
+        timestamp: 123
+      }
+    ]
+  })
+  const { clearDiagnosticLog, getDiagnosticLog } = await importStorageModule()
+
+  await clearDiagnosticLog()
+
+  assert.deepEqual(await getDiagnosticLog(), [])
+  assert.deepEqual(state.diagnosticLog, [])
+})

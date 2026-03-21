@@ -2,9 +2,11 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  DELAYED_ERROR_FALLBACK_MS,
+  getFallbackReasonForXcancelPage,
   getProtectedPostFallbackUrlForPage,
+  isForbiddenErrorPage,
   isNotFoundErrorPage,
-  isVerificationInterstitialPage,
   isProtectedAccountPage,
   isXcancelHostname
 } from "../extension/src/shared/xcancel-fallback.js"
@@ -33,22 +35,81 @@ test("falls back from a protected xcancel status page to x.com", () => {
   )
 })
 
-test("detects xcancel verification interstitials", () => {
+test("classifies protected-account fallback pages", () => {
   assert.equal(
-    isVerificationInterstitialPage({
-      title: "X Cancelled | Verifying your request",
-      textContent: "Want to access the original Twitter/X link? click here"
+    getFallbackReasonForXcancelPage({
+      textContent: "This account's tweets are protected. Only confirmed followers have access to @someone's tweets."
     }),
-    true
+    "protected-account"
   )
 })
 
-test("falls back from an xcancel verification interstitial to x.com", () => {
+test("does not fall back from an xcancel verification interstitial", () => {
   assert.equal(
     getProtectedPostFallbackUrlForPage("https://xcancel.com/someone/status/123?s=20#frag", {
       title: "X Cancelled | Verifying your request",
       textContent: "Sorry this pages exist in order to keep the service usable for everyone. Want to access the original Twitter/X link? click here"
     }),
+    null
+  )
+})
+
+test("detects xcancel forbidden error pages", () => {
+  assert.equal(
+    isForbiddenErrorPage({
+      title: "403 Forbidden",
+      textContent: "403 Forbidden openresty"
+    }),
+    true
+  )
+})
+
+test("detects xcancel forbidden pages from the title alone", () => {
+  assert.equal(
+    isForbiddenErrorPage({
+      title: "403 Forbidden"
+    }),
+    true
+  )
+})
+
+test("classifies forbidden fallback pages", () => {
+  assert.equal(
+    getFallbackReasonForXcancelPage({
+      title: "403 Forbidden"
+    }),
+    "forbidden"
+  )
+})
+
+test("does not fall back from an xcancel forbidden status page before the grace period", () => {
+  assert.equal(
+    getProtectedPostFallbackUrlForPage(
+      "https://xcancel.com/someone/status/123?s=20#frag",
+      {
+        title: "403 Forbidden",
+        textContent: "403 Forbidden openresty"
+      },
+      {
+        elapsedMs: DELAYED_ERROR_FALLBACK_MS - 1
+      }
+    ),
+    null
+  )
+})
+
+test("falls back from an xcancel forbidden status page to x.com after the grace period", () => {
+  assert.equal(
+    getProtectedPostFallbackUrlForPage(
+      "https://xcancel.com/someone/status/123?s=20#frag",
+      {
+        title: "403 Forbidden",
+        textContent: "403 Forbidden openresty"
+      },
+      {
+        elapsedMs: DELAYED_ERROR_FALLBACK_MS
+      }
+    ),
     "https://x.com/someone/status/123?s=20#frag"
   )
 })
@@ -63,12 +124,44 @@ test("detects xcancel not-found error pages", () => {
   )
 })
 
-test("falls back from an xcancel not-found status page to x.com", () => {
+test("classifies not-found fallback pages", () => {
   assert.equal(
-    getProtectedPostFallbackUrlForPage("https://xcancel.com/someone/status/123?s=20#frag", {
+    getFallbackReasonForXcancelPage({
       title: "Error | XCancel",
       textContent: "Tweet not found"
     }),
+    "not-found"
+  )
+})
+
+test("does not fall back from an xcancel not-found page before the grace period", () => {
+  assert.equal(
+    getProtectedPostFallbackUrlForPage(
+      "https://xcancel.com/someone/status/123?s=20#frag",
+      {
+        title: "Error | XCancel",
+        textContent: "Tweet not found"
+      },
+      {
+        elapsedMs: DELAYED_ERROR_FALLBACK_MS - 1
+      }
+    ),
+    null
+  )
+})
+
+test("falls back from an xcancel not-found page after the grace period", () => {
+  assert.equal(
+    getProtectedPostFallbackUrlForPage(
+      "https://xcancel.com/someone/status/123?s=20#frag",
+      {
+        title: "Error | XCancel",
+        textContent: "Tweet not found"
+      },
+      {
+        elapsedMs: DELAYED_ERROR_FALLBACK_MS
+      }
+    ),
     "https://x.com/someone/status/123?s=20#frag"
   )
 })
