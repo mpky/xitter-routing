@@ -2,6 +2,7 @@ import {
   FEED_FAN_OUT_MAX,
   FEED_FAN_OUT_MIN,
   clearDiagnosticLog,
+  evaluateFeedFanOutCount,
   getDiagnosticLog,
   getSettings,
   setSettings
@@ -107,13 +108,19 @@ feedFanOutInput.addEventListener("change", async (event) => {
 })
 
 feedFanOutCountInput.addEventListener("change", async (event) => {
-  const raw = Number.parseInt(event.currentTarget.value, 10)
-  const clamped = Number.isFinite(raw)
-    ? Math.min(FEED_FAN_OUT_MAX, Math.max(FEED_FAN_OUT_MIN, raw))
-    : FEED_FAN_OUT_MIN
+  const { value: clamped, reason } = evaluateFeedFanOutCount(event.currentTarget.value)
   event.currentTarget.value = String(clamped)
   await setSettings({ feedFanOutCount: clamped })
-  setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
+
+  if (reason === "invalid") {
+    setStatus(`Enter a whole number between ${FEED_FAN_OUT_MIN} and ${FEED_FAN_OUT_MAX}; using ${clamped}.`)
+  } else if (reason === "below") {
+    setStatus(`Below the minimum (${FEED_FAN_OUT_MIN}); using ${clamped}.`)
+  } else if (reason === "above") {
+    setStatus(`Above the maximum (${FEED_FAN_OUT_MAX}); using ${clamped}.`)
+  } else {
+    setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
+  }
 })
 
 refreshDiagnosticsButton?.addEventListener("click", async () => {

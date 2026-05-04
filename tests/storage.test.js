@@ -186,6 +186,20 @@ test("getSettings falls back to the default count for invalid values", async () 
   })
 })
 
+test("evaluateFeedFanOutCount classifies and clamps values", async () => {
+  withBrowserStorage()
+  const { evaluateFeedFanOutCount } = await importStorageModule()
+
+  assert.deepEqual(evaluateFeedFanOutCount(7), { value: 7, reason: "ok" })
+  assert.deepEqual(evaluateFeedFanOutCount("3.7"), { value: 3, reason: "ok" })
+  assert.deepEqual(evaluateFeedFanOutCount(0), { value: 1, reason: "below" })
+  assert.deepEqual(evaluateFeedFanOutCount("-2"), { value: 1, reason: "below" })
+  assert.deepEqual(evaluateFeedFanOutCount(99), { value: 20, reason: "above" })
+  assert.deepEqual(evaluateFeedFanOutCount("abc"), { value: 5, reason: "invalid" })
+  assert.deepEqual(evaluateFeedFanOutCount(""), { value: 5, reason: "invalid" })
+  assert.deepEqual(evaluateFeedFanOutCount(undefined), { value: 5, reason: "invalid" })
+})
+
 test("registerFallbackBypass stores a short-lived bypass that can be cleared", async () => {
   const state = withBrowserStorage()
   const {
