@@ -1,7 +1,12 @@
 export const DEFAULT_SETTINGS = Object.freeze({
   enabled: true,
-  redirectMode: "status-only"
+  redirectMode: "status-only",
+  feedFanOut: false,
+  feedFanOutCount: 5
 })
+
+export const FEED_FAN_OUT_MIN = 1
+export const FEED_FAN_OUT_MAX = 20
 
 export const FALLBACK_BYPASS_STORAGE_KEY = "fallbackBypasses"
 export const FALLBACK_BYPASS_TTL_MS = 60_000
@@ -180,12 +185,34 @@ async function storeActiveFallbackBypasses(records, now = Date.now()) {
   return activeBypasses
 }
 
+function clampFeedFanOutCount(value) {
+  const parsed = Number.isFinite(value) ? Math.trunc(value) : Number.parseInt(value, 10)
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_SETTINGS.feedFanOutCount
+  }
+
+  if (parsed < FEED_FAN_OUT_MIN) {
+    return FEED_FAN_OUT_MIN
+  }
+
+  if (parsed > FEED_FAN_OUT_MAX) {
+    return FEED_FAN_OUT_MAX
+  }
+
+  return parsed
+}
+
 export async function getSettings() {
   const result = await getStorageItems(DEFAULT_SETTINGS)
 
   return {
     enabled: result.enabled ?? DEFAULT_SETTINGS.enabled,
-    redirectMode: result.redirectMode ?? DEFAULT_SETTINGS.redirectMode
+    redirectMode: result.redirectMode ?? DEFAULT_SETTINGS.redirectMode,
+    feedFanOut: result.feedFanOut ?? DEFAULT_SETTINGS.feedFanOut,
+    feedFanOutCount: clampFeedFanOutCount(
+      result.feedFanOutCount ?? DEFAULT_SETTINGS.feedFanOutCount
+    )
   }
 }
 

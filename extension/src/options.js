@@ -1,4 +1,6 @@
 import {
+  FEED_FAN_OUT_MAX,
+  FEED_FAN_OUT_MIN,
   clearDiagnosticLog,
   getDiagnosticLog,
   getSettings,
@@ -8,6 +10,8 @@ import { BUILD_INFO } from "./build-info.js"
 
 const enabledInput = document.querySelector("#enabled")
 const redirectModeInput = document.querySelector("#redirect-mode")
+const feedFanOutInput = document.querySelector("#feed-fan-out")
+const feedFanOutCountInput = document.querySelector("#feed-fan-out-count")
 const statusNode = document.querySelector("#status")
 const buildStampNode = document.querySelector("#build-stamp")
 const diagnosticLogNode = document.querySelector("#diagnostic-log")
@@ -72,6 +76,10 @@ async function initialize() {
   const settings = await getSettings()
   enabledInput.checked = settings.enabled
   redirectModeInput.value = settings.redirectMode
+  feedFanOutInput.checked = settings.feedFanOut
+  feedFanOutCountInput.min = String(FEED_FAN_OUT_MIN)
+  feedFanOutCountInput.max = String(FEED_FAN_OUT_MAX)
+  feedFanOutCountInput.value = String(settings.feedFanOutCount)
   await renderDiagnosticLog()
   setStatus("")
 }
@@ -90,6 +98,22 @@ redirectModeInput.addEventListener("change", async (event) => {
       ? "Redirecting all X/Twitter URLs."
       : "Redirecting status links only."
   )
+})
+
+feedFanOutInput.addEventListener("change", async (event) => {
+  const feedFanOut = event.currentTarget.checked
+  await setSettings({ feedFanOut })
+  setStatus(feedFanOut ? "Feed fan-out enabled." : "Feed fan-out disabled.")
+})
+
+feedFanOutCountInput.addEventListener("change", async (event) => {
+  const raw = Number.parseInt(event.currentTarget.value, 10)
+  const clamped = Number.isFinite(raw)
+    ? Math.min(FEED_FAN_OUT_MAX, Math.max(FEED_FAN_OUT_MIN, raw))
+    : FEED_FAN_OUT_MIN
+  event.currentTarget.value = String(clamped)
+  await setSettings({ feedFanOutCount: clamped })
+  setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
 })
 
 refreshDiagnosticsButton?.addEventListener("click", async () => {

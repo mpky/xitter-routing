@@ -51,6 +51,25 @@ function createTab(createProperties) {
   });
 }
 
+function removeTab(tabId) {
+  if (browserApi?.tabs?.remove) {
+    return browserApi.tabs.remove(tabId);
+  }
+
+  return new Promise((resolve, reject) => {
+    chromeApi.tabs.remove(tabId, () => {
+      const error = chromeApi.runtime?.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
 function getMenusApi() {
   return browserApi?.menus ?? browserApi?.contextMenus ?? chromeApi?.contextMenus ?? null;
 }
@@ -195,6 +214,47 @@ async function createContextMenus() {
   });
 }
 
+async function fanOutFeed(senderTab, urls) {
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return;
+  }
+
+  const baseIndex = typeof senderTab?.index === "number" ? senderTab.index : null;
+  const windowId = typeof senderTab?.windowId === "number" ? senderTab.windowId : null;
+
+  for (let position = 0; position < urls.length; position += 1) {
+    const url = urls[position];
+
+    if (typeof url !== "string" || url === "") {
+      continue;
+    }
+
+    const createProperties = {
+      active: position === 0,
+      url
+    };
+
+    if (baseIndex !== null) {
+      createProperties.index = baseIndex + position + 1;
+    }
+
+    if (windowId !== null) {
+      createProperties.windowId = windowId;
+    }
+
+    try {
+      await createTab(createProperties);
+    } catch {
+      // Continue opening remaining tabs even if one fails
+    }
+  }
+
+  if (typeof senderTab?.id === "number") {
+    pendingRedirects.delete(senderTab.id);
+    await removeTab(senderTab.id).catch(() => {});
+  }
+}
+
 async function handleMenuClick(info, tab) {
   if (info.menuItemId === MENU_OPEN_LINK && typeof info.linkUrl === "string") {
     await openLinkInNewTab(tab, info.linkUrl);
@@ -234,6 +294,15 @@ extensionApi.action?.onClicked?.addListener((tab) => {
   redirectTab(tab.id, tab.url).catch(() => {
     pendingRedirects.delete(tab.id);
   });
+});
+
+extensionApi.runtime.onMessage.addListener((message, sender) => {
+  if (!message || message.type !== "fan-out-feed") {
+    return undefined;
+  }
+
+  fanOutFeed(sender?.tab, message.urls).catch(() => {});
+  return undefined;
 });
 
 const menusApi = getMenusApi();

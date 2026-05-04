@@ -7,15 +7,21 @@
 
   const [
     { appendDiagnosticLog, clearFallbackBypass, getSettings, hasFallbackBypass },
-    { rewriteUrl }
+    { rewriteUrl },
+    { isFeedUrl }
   ] = await Promise.all([
     import(extensionApi.runtime.getURL("src/storage.js")),
-    import(extensionApi.runtime.getURL("src/shared/rewriter.js"))
+    import(extensionApi.runtime.getURL("src/shared/rewriter.js")),
+    import(extensionApi.runtime.getURL("src/shared/feed-scraper.js"))
   ])
 
   const settings = await getSettings()
 
   if (settings.enabled === false) {
+    return
+  }
+
+  if (settings.feedFanOut && isFeedUrl(window.location.href)) {
     return
   }
 

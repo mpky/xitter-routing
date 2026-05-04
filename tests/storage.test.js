@@ -62,7 +62,9 @@ test.afterEach(() => {
 test("setSettings preserves existing browser storage values on partial updates", async () => {
   const state = withBrowserStorage({
     enabled: false,
-    redirectMode: "all"
+    redirectMode: "all",
+    feedFanOut: false,
+    feedFanOutCount: 5
   })
   const { getSettings, setSettings } = await importStorageModule()
 
@@ -70,18 +72,24 @@ test("setSettings preserves existing browser storage values on partial updates",
 
   assert.deepEqual(state, {
     enabled: true,
-    redirectMode: "all"
+    redirectMode: "all",
+    feedFanOut: false,
+    feedFanOutCount: 5
   })
   assert.deepEqual(await getSettings(), {
     enabled: true,
-    redirectMode: "all"
+    redirectMode: "all",
+    feedFanOut: false,
+    feedFanOutCount: 5
   })
 })
 
 test("setSettings preserves existing chrome storage values on partial updates", async () => {
   const state = withChromeStorage({
     enabled: false,
-    redirectMode: "all"
+    redirectMode: "all",
+    feedFanOut: true,
+    feedFanOutCount: 7
   })
   const { getSettings, setSettings } = await importStorageModule()
 
@@ -89,11 +97,15 @@ test("setSettings preserves existing chrome storage values on partial updates", 
 
   assert.deepEqual(state, {
     enabled: false,
-    redirectMode: "status-only"
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: 7
   })
   assert.deepEqual(await getSettings(), {
     enabled: false,
-    redirectMode: "status-only"
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: 7
   })
 })
 
@@ -105,11 +117,15 @@ test("setSettings fills in defaults when storage starts empty", async () => {
 
   assert.deepEqual(state, {
     enabled: false,
-    redirectMode: "status-only"
+    redirectMode: "status-only",
+    feedFanOut: false,
+    feedFanOutCount: 5
   })
   assert.deepEqual(await getSettings(), {
     enabled: false,
-    redirectMode: "status-only"
+    redirectMode: "status-only",
+    feedFanOut: false,
+    feedFanOutCount: 5
   })
 })
 
@@ -117,6 +133,8 @@ test("getSettings ignores internal fallback bypass state", async () => {
   withBrowserStorage({
     enabled: false,
     redirectMode: "all",
+    feedFanOut: false,
+    feedFanOutCount: 5,
     fallbackBypasses: [
       {
         expiresAt: Date.now() + 1_000,
@@ -128,7 +146,43 @@ test("getSettings ignores internal fallback bypass state", async () => {
 
   assert.deepEqual(await getSettings(), {
     enabled: false,
-    redirectMode: "all"
+    redirectMode: "all",
+    feedFanOut: false,
+    feedFanOutCount: 5
+  })
+})
+
+test("getSettings clamps feedFanOutCount into the supported range", async () => {
+  withBrowserStorage({
+    enabled: true,
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: 99
+  })
+  const { getSettings } = await importStorageModule()
+
+  assert.deepEqual(await getSettings(), {
+    enabled: true,
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: 20
+  })
+})
+
+test("getSettings falls back to the default count for invalid values", async () => {
+  withBrowserStorage({
+    enabled: true,
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: "not-a-number"
+  })
+  const { getSettings } = await importStorageModule()
+
+  assert.deepEqual(await getSettings(), {
+    enabled: true,
+    redirectMode: "status-only",
+    feedFanOut: true,
+    feedFanOutCount: 5
   })
 })
 
