@@ -2,6 +2,7 @@ import {
   FEED_FAN_OUT_MAX,
   FEED_FAN_OUT_MIN,
   clearDiagnosticLog,
+  evaluateFeedFanOutCount,
   getDiagnosticLog,
   getSettings,
   setSettings
@@ -107,29 +108,16 @@ feedFanOutInput.addEventListener("change", async (event) => {
 })
 
 feedFanOutCountInput.addEventListener("change", async (event) => {
-  const rawValue = event.currentTarget.value
-  const parsed = Number.parseInt(rawValue, 10)
-  let clamped
-  let outOfRangeMessage = null
-
-  if (!Number.isFinite(parsed)) {
-    clamped = FEED_FAN_OUT_MIN
-    outOfRangeMessage = `Enter a whole number between ${FEED_FAN_OUT_MIN} and ${FEED_FAN_OUT_MAX}; using ${clamped}.`
-  } else if (parsed < FEED_FAN_OUT_MIN) {
-    clamped = FEED_FAN_OUT_MIN
-    outOfRangeMessage = `${parsed} is below the minimum (${FEED_FAN_OUT_MIN}); using ${clamped}.`
-  } else if (parsed > FEED_FAN_OUT_MAX) {
-    clamped = FEED_FAN_OUT_MAX
-    outOfRangeMessage = `${parsed} is above the maximum (${FEED_FAN_OUT_MAX}); using ${clamped}.`
-  } else {
-    clamped = parsed
-  }
-
+  const { value: clamped, reason } = evaluateFeedFanOutCount(event.currentTarget.value)
   event.currentTarget.value = String(clamped)
   await setSettings({ feedFanOutCount: clamped })
 
-  if (outOfRangeMessage) {
-    setStatus(outOfRangeMessage)
+  if (reason === "invalid") {
+    setStatus(`Enter a whole number between ${FEED_FAN_OUT_MIN} and ${FEED_FAN_OUT_MAX}; using ${clamped}.`)
+  } else if (reason === "below") {
+    setStatus(`Below the minimum (${FEED_FAN_OUT_MIN}); using ${clamped}.`)
+  } else if (reason === "above") {
+    setStatus(`Above the maximum (${FEED_FAN_OUT_MAX}); using ${clamped}.`)
   } else {
     setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
   }

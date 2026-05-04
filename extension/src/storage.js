@@ -185,22 +185,26 @@ async function storeActiveFallbackBypasses(records, now = Date.now()) {
   return activeBypasses
 }
 
-function clampFeedFanOutCount(value) {
+export function evaluateFeedFanOutCount(value) {
   const parsed = Number.isFinite(value) ? Math.trunc(value) : Number.parseInt(value, 10)
 
   if (!Number.isFinite(parsed)) {
-    return DEFAULT_SETTINGS.feedFanOutCount
+    return { value: DEFAULT_SETTINGS.feedFanOutCount, reason: "invalid" }
   }
 
   if (parsed < FEED_FAN_OUT_MIN) {
-    return FEED_FAN_OUT_MIN
+    return { value: FEED_FAN_OUT_MIN, reason: "below" }
   }
 
   if (parsed > FEED_FAN_OUT_MAX) {
-    return FEED_FAN_OUT_MAX
+    return { value: FEED_FAN_OUT_MAX, reason: "above" }
   }
 
-  return parsed
+  return { value: parsed, reason: "ok" }
+}
+
+function clampFeedFanOutCount(value) {
+  return evaluateFeedFanOutCount(value).value
 }
 
 export async function getSettings() {
