@@ -74,7 +74,8 @@
         margin-bottom: 0.5rem;
       }
 
-      select {
+      select,
+      input[type="number"] {
         width: 100%;
         max-width: 20rem;
         padding: 0.7rem 0.85rem;
@@ -173,6 +174,19 @@
             <code>x.com</code> intentionally without being pushed onto
             <code>xcancel.com</code>.
           </p>
+        </div>
+        <label for="feed-fan-out">
+          <input id="feed-fan-out" type="checkbox">
+          Fan out top feed posts
+        </label>
+        <p>
+          When you visit <code>x.com</code>, <code>x.com/home</code>, or
+          <code>x.com/i/timeline</code>, mask the feed, grab the top posts,
+          and open each one as its own <code>xcancel.com</code> tab.
+        </p>
+        <div class="field">
+          <label for="feed-fan-out-count">Posts to fan out</label>
+          <input id="feed-fan-out-count" type="number" min="1" max="20" step="1">
         </div>
         <div id="status" aria-live="polite"></div>
         <div id="build-stamp"></div>

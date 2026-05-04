@@ -1,6 +1,8 @@
+import { isFeedUrl } from "./shared/feed-scraper.js";
 import { rewriteUrl } from "./shared/rewriter.js";
 import {
   DEFAULT_SETTINGS,
+  appendDiagnosticLog,
   getSettings,
   hasFallbackBypass,
   setSettings
@@ -47,6 +49,25 @@ function createTab(createProperties) {
       }
 
       resolve(tab);
+    });
+  });
+}
+
+function removeTab(tabId) {
+  if (browserApi?.tabs?.remove) {
+    return browserApi.tabs.remove(tabId);
+  }
+
+  return new Promise((resolve, reject) => {
+    chromeApi.tabs.remove(tabId, () => {
+      const error = chromeApi.runtime?.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      resolve();
     });
   });
 }
@@ -105,11 +126,28 @@ async function shouldRedirect(url) {
     return null;
   }
 
+  if (settings.feedFanOut && isFeedUrl(url)) {
+    return null;
+  }
+
   if (await hasFallbackBypass(url)) {
     return null;
   }
 
   return rewriteUrl(url, { redirectMode: settings.redirectMode });
+}
+
+function logFanOutEvent(action, fields) {
+  return appendDiagnosticLog({
+    action,
+    source: "background-fan-out",
+    timestamp: Date.now(),
+    ...fields
+  }).catch(() => {});
+}
+
+function describeError(error) {
+  return String(error?.message ?? error ?? "").slice(0, 200);
 }
 
 async function redirectTab(tabId, url) {
@@ -195,6 +233,68 @@ async function createContextMenus() {
   });
 }
 
+async function fanOutFeed(senderTab, urls) {
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return;
+  }
+
+  const baseIndex = typeof senderTab?.index === "number" ? senderTab.index : null;
+  const windowId = typeof senderTab?.windowId === "number" ? senderTab.windowId : null;
+  const senderUrl = senderTab?.url ?? "";
+  let successCount = 0;
+
+  for (let position = 0; position < urls.length; position += 1) {
+    const url = urls[position];
+
+    if (typeof url !== "string" || url === "") {
+      continue;
+    }
+
+    const createProperties = {
+      active: position === 0,
+      url
+    };
+
+    if (baseIndex !== null) {
+      createProperties.index = baseIndex + position + 1;
+    }
+
+    if (windowId !== null) {
+      createProperties.windowId = windowId;
+    }
+
+    try {
+      await createTab(createProperties);
+      successCount += 1;
+    } catch (error) {
+      await logFanOutEvent("fan-out-tab-failed", {
+        url,
+        message: describeError(error)
+      });
+    }
+  }
+
+  // Leave the source tab in place if no fan-out tabs opened — the user keeps
+  // their feed and a diagnostic entry explains why.
+  if (successCount === 0) {
+    await logFanOutEvent("fan-out-all-tabs-failed", {
+      url: senderUrl,
+      requestedCount: urls.length
+    });
+    return;
+  }
+
+  if (typeof senderTab?.id === "number") {
+    pendingRedirects.delete(senderTab.id);
+    await removeTab(senderTab.id).catch((error) =>
+      logFanOutEvent("fan-out-source-close-failed", {
+        url: senderUrl,
+        message: describeError(error)
+      })
+    );
+  }
+}
+
 async function handleMenuClick(info, tab) {
   if (info.menuItemId === MENU_OPEN_LINK && typeof info.linkUrl === "string") {
     await openLinkInNewTab(tab, info.linkUrl);
@@ -234,6 +334,20 @@ extensionApi.action?.onClicked?.addListener((tab) => {
   redirectTab(tab.id, tab.url).catch(() => {
     pendingRedirects.delete(tab.id);
   });
+});
+
+extensionApi.runtime.onMessage.addListener((message, sender) => {
+  if (!message || message.type !== "fan-out-feed") {
+    return undefined;
+  }
+
+  fanOutFeed(sender?.tab, message.urls).catch((error) =>
+    logFanOutEvent("fan-out-listener-error", {
+      url: sender?.tab?.url ?? "",
+      message: describeError(error)
+    })
+  );
+  return undefined;
 });
 
 const menusApi = getMenusApi();

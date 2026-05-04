@@ -30,6 +30,18 @@
         "*://*.twitter.com/*"
       ],
       "js": [
+        "src/content-feed-fanout.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://x.com/*",
+        "*://*.x.com/*",
+        "*://twitter.com/*",
+        "*://*.twitter.com/*"
+      ],
+      "js": [
         "src/content-redirect.js"
       ],
       "run_at": "document_start"
@@ -48,6 +60,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "src/shared/feed-scraper.js",
         "src/shared/rewriter.js",
         "src/shared/xcancel-fallback.js",
         "src/storage.js"
