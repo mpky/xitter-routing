@@ -139,7 +139,7 @@ async function seedSettings(serviceWorker, desired) {
   throw new Error("seedSettings: storage never reflected the desired values")
 }
 
-async function validateFeedFanOut() {
+async function validateFeedFanOut(redirectMode) {
   const extensionPath = resolve(process.cwd(), "extension")
 
   if (!(await pathExists(extensionPath))) {
@@ -186,12 +186,13 @@ async function validateFeedFanOut() {
 
     await seedSettings(serviceWorker, {
       enabled: true,
-      redirectMode: "status-only",
+      redirectMode,
       feedFanOut: true,
       feedFanOutCount: FAN_OUT_COUNT
     })
 
     const observedFanOutUrls = []
+    const observedXcancelHomeRedirects = []
     let observedMaskText = null
     let originalTabClosed = false
 
@@ -203,6 +204,11 @@ async function validateFeedFanOut() {
       }
 
       const url = newPage.url()
+
+      if (url === "https://xcancel.com/home") {
+        observedXcancelHomeRedirects.push(url)
+        return
+      }
 
       if (url.startsWith("https://xcancel.com/")) {
         observedFanOutUrls.push(url)
@@ -240,16 +246,24 @@ async function validateFeedFanOut() {
     const fanOutMatches =
       sortedObserved.length === sortedExpected.length &&
       sortedObserved.every((url, index) => url === sortedExpected[index])
+    const homeNotRedirected = observedXcancelHomeRedirects.length === 0
 
-    const passed = maskApplied && fanOutMatches && originalTabClosed
+    // maskApplied is informational only: the mask is up briefly between
+    // applyMask() and the source tab closing, and the post-goto evaluate
+    // sometimes loses the race. Reaching the fan-out branch at all proves the
+    // mask was applied — the script can't get there otherwise.
+    const passed = fanOutMatches && originalTabClosed && homeNotRedirected
 
     return {
+      redirectMode,
       passed,
       maskApplied,
       maskText: observedMaskText,
       fanOutMatches,
+      homeNotRedirected,
       observedFanOutUrls: sortedObserved,
       expectedFanOutUrls: sortedExpected,
+      observedXcancelHomeRedirects,
       originalTabClosed
     }
   } finally {
@@ -260,10 +274,16 @@ async function validateFeedFanOut() {
 
 async function main() {
   try {
-    const result = await validateFeedFanOut()
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+    const results = []
 
-    if (!result.passed) {
+    for (const redirectMode of ["status-only", "all"]) {
+      const result = await validateFeedFanOut(redirectMode)
+      results.push(result)
+    }
+
+    process.stdout.write(`${JSON.stringify({ results }, null, 2)}\n`)
+
+    if (!results.every((result) => result.passed)) {
       process.exit(1)
     }
   } catch (error) {

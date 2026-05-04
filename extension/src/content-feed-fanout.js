@@ -7,7 +7,26 @@
 
   const SCRAPE_TIMEOUT_MS = 8000;
   const SCRAPE_POLL_INTERVAL_MS = 250;
+  const MASK_WATCHDOG_MS = 10000;
   const MASK_ID = "xrt-fanout-mask";
+
+  function describeError(error) {
+    return String(error?.message ?? error ?? "").slice(0, 200);
+  }
+
+  async function logFanOutEvent(loggerImport, action, fields) {
+    try {
+      const { appendDiagnosticLog } = await loggerImport;
+      await appendDiagnosticLog({
+        action,
+        source: "content-feed-fanout",
+        timestamp: Date.now(),
+        ...fields
+      });
+    } catch {
+      // Diagnostic logging is best-effort; never block the user on it.
+    }
+  }
 
   function applyMask() {
     if (document.getElementById(MASK_ID)) {
@@ -105,27 +124,33 @@
   }
 
   function sendMessage(payload) {
-    if (extensionApi.runtime?.sendMessage) {
-      try {
-        const result = extensionApi.runtime.sendMessage(payload);
-
-        if (result && typeof result.then === "function") {
-          return result.catch(() => undefined);
-        }
-      } catch {
-        // ignore
-      }
+    if (!extensionApi.runtime?.sendMessage) {
+      return Promise.resolve({ ok: false, reason: "sendMessage-unavailable" });
     }
 
-    return Promise.resolve();
+    try {
+      const result = extensionApi.runtime.sendMessage(payload);
+
+      if (result && typeof result.then === "function") {
+        return result.then(
+          () => ({ ok: true }),
+          (error) => ({ ok: false, reason: describeError(error) })
+        );
+      }
+    } catch (error) {
+      return Promise.resolve({ ok: false, reason: describeError(error) });
+    }
+
+    return Promise.resolve({ ok: true });
   }
 
+  const storageImport = import(extensionApi.runtime.getURL("src/storage.js"));
   const [
     { getSettings },
     { collectTweetCandidates, isFeedUrl, pickTopPosts },
     { rewriteUrl }
   ] = await Promise.all([
-    import(extensionApi.runtime.getURL("src/storage.js")),
+    storageImport,
     import(extensionApi.runtime.getURL("src/shared/feed-scraper.js")),
     import(extensionApi.runtime.getURL("src/shared/rewriter.js"))
   ]);
@@ -136,7 +161,9 @@
     return;
   }
 
-  if (!isFeedUrl(window.location.href)) {
+  const pageUrl = window.location.href;
+
+  if (!isFeedUrl(pageUrl)) {
     return;
   }
 
@@ -151,13 +178,55 @@
 
   if (rewrittenUrls.length === 0) {
     removeMask();
+    await logFanOutEvent(storageImport, "fan-out-no-candidates", {
+      url: pageUrl,
+      requestedCount: count
+    });
     return;
   }
 
-  await sendMessage({
+  const result = await sendMessage({
     type: "fan-out-feed",
     urls: rewrittenUrls
   });
 
-  // Mask stays up; background will close this tab once new ones open.
-})().catch(() => {});
+  if (!result.ok) {
+    removeMask();
+    await logFanOutEvent(storageImport, "fan-out-send-message-failed", {
+      url: pageUrl,
+      reason: result.reason
+    });
+    return;
+  }
+
+  // Background should close this tab once the fan-out tabs open. The watchdog
+  // takes the mask down if that never happens — a permanent mask would brick
+  // the page, so we trade the brief "loading" UX for a guaranteed escape.
+  setTimeout(() => {
+    if (document.getElementById(MASK_ID)) {
+      removeMask();
+      logFanOutEvent(storageImport, "fan-out-watchdog", {
+        url: pageUrl,
+        timeoutMs: MASK_WATCHDOG_MS
+      });
+    }
+  }, MASK_WATCHDOG_MS);
+})().catch(async (error) => {
+  document.getElementById("xrt-fanout-mask")?.remove();
+
+  try {
+    const extensionApi = globalThis.browser ?? globalThis.chrome;
+    const { appendDiagnosticLog } = await import(
+      extensionApi.runtime.getURL("src/storage.js")
+    );
+    await appendDiagnosticLog({
+      action: "fan-out-error",
+      source: "content-feed-fanout",
+      url: window.location?.href ?? "",
+      message: String(error?.message ?? error ?? "").slice(0, 200),
+      timestamp: Date.now()
+    });
+  } catch {
+    // Last-ditch logging only; nothing else to do.
+  }
+});

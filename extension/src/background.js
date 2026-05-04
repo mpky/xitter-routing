@@ -1,6 +1,8 @@
+import { isFeedUrl } from "./shared/feed-scraper.js";
 import { rewriteUrl } from "./shared/rewriter.js";
 import {
   DEFAULT_SETTINGS,
+  appendDiagnosticLog,
   getSettings,
   hasFallbackBypass,
   setSettings
@@ -124,11 +126,28 @@ async function shouldRedirect(url) {
     return null;
   }
 
+  if (settings.feedFanOut && isFeedUrl(url)) {
+    return null;
+  }
+
   if (await hasFallbackBypass(url)) {
     return null;
   }
 
   return rewriteUrl(url, { redirectMode: settings.redirectMode });
+}
+
+function logFanOutEvent(action, fields) {
+  return appendDiagnosticLog({
+    action,
+    source: "background-fan-out",
+    timestamp: Date.now(),
+    ...fields
+  }).catch(() => {});
+}
+
+function describeError(error) {
+  return String(error?.message ?? error ?? "").slice(0, 200);
 }
 
 async function redirectTab(tabId, url) {
@@ -221,6 +240,8 @@ async function fanOutFeed(senderTab, urls) {
 
   const baseIndex = typeof senderTab?.index === "number" ? senderTab.index : null;
   const windowId = typeof senderTab?.windowId === "number" ? senderTab.windowId : null;
+  const senderUrl = senderTab?.url ?? "";
+  let successCount = 0;
 
   for (let position = 0; position < urls.length; position += 1) {
     const url = urls[position];
@@ -244,14 +265,33 @@ async function fanOutFeed(senderTab, urls) {
 
     try {
       await createTab(createProperties);
-    } catch {
-      // Continue opening remaining tabs even if one fails
+      successCount += 1;
+    } catch (error) {
+      await logFanOutEvent("fan-out-tab-failed", {
+        url,
+        message: describeError(error)
+      });
     }
+  }
+
+  // Leave the source tab in place if no fan-out tabs opened — the user keeps
+  // their feed and a diagnostic entry explains why.
+  if (successCount === 0) {
+    await logFanOutEvent("fan-out-all-tabs-failed", {
+      url: senderUrl,
+      requestedCount: urls.length
+    });
+    return;
   }
 
   if (typeof senderTab?.id === "number") {
     pendingRedirects.delete(senderTab.id);
-    await removeTab(senderTab.id).catch(() => {});
+    await removeTab(senderTab.id).catch((error) =>
+      logFanOutEvent("fan-out-source-close-failed", {
+        url: senderUrl,
+        message: describeError(error)
+      })
+    );
   }
 }
 
@@ -301,7 +341,12 @@ extensionApi.runtime.onMessage.addListener((message, sender) => {
     return undefined;
   }
 
-  fanOutFeed(sender?.tab, message.urls).catch(() => {});
+  fanOutFeed(sender?.tab, message.urls).catch((error) =>
+    logFanOutEvent("fan-out-listener-error", {
+      url: sender?.tab?.url ?? "",
+      message: describeError(error)
+    })
+  );
   return undefined;
 });
 
