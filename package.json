@@ -9,6 +9,7 @@
     "test:extension-cli": "node --test tests/validate-extension-cli.test.js",
     "stamp:build": "node scripts/generate-build-info.mjs",
     "quick-action:print": "node scripts/open-via-xcancel.mjs --print-only",
-    "validate:extension": "node scripts/validate-extension.mjs"
+    "validate:extension": "node scripts/validate-extension.mjs",
+    "validate:feed-fanout": "node scripts/validate-feed-fanout.mjs"
   }
 }
