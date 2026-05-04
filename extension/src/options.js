@@ -107,13 +107,32 @@ feedFanOutInput.addEventListener("change", async (event) => {
 })
 
 feedFanOutCountInput.addEventListener("change", async (event) => {
-  const raw = Number.parseInt(event.currentTarget.value, 10)
-  const clamped = Number.isFinite(raw)
-    ? Math.min(FEED_FAN_OUT_MAX, Math.max(FEED_FAN_OUT_MIN, raw))
-    : FEED_FAN_OUT_MIN
+  const rawValue = event.currentTarget.value
+  const parsed = Number.parseInt(rawValue, 10)
+  let clamped
+  let outOfRangeMessage = null
+
+  if (!Number.isFinite(parsed)) {
+    clamped = FEED_FAN_OUT_MIN
+    outOfRangeMessage = `Enter a whole number between ${FEED_FAN_OUT_MIN} and ${FEED_FAN_OUT_MAX}; using ${clamped}.`
+  } else if (parsed < FEED_FAN_OUT_MIN) {
+    clamped = FEED_FAN_OUT_MIN
+    outOfRangeMessage = `${parsed} is below the minimum (${FEED_FAN_OUT_MIN}); using ${clamped}.`
+  } else if (parsed > FEED_FAN_OUT_MAX) {
+    clamped = FEED_FAN_OUT_MAX
+    outOfRangeMessage = `${parsed} is above the maximum (${FEED_FAN_OUT_MAX}); using ${clamped}.`
+  } else {
+    clamped = parsed
+  }
+
   event.currentTarget.value = String(clamped)
   await setSettings({ feedFanOutCount: clamped })
-  setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
+
+  if (outOfRangeMessage) {
+    setStatus(outOfRangeMessage)
+  } else {
+    setStatus(`Fan out ${clamped} post${clamped === 1 ? "" : "s"} per visit.`)
+  }
 })
 
 refreshDiagnosticsButton?.addEventListener("click", async () => {
