@@ -1,6 +1,10 @@
 // Open via xcancel for Scriptable on iOS
 // Run from Scriptable directly or via a Shortcut that passes input text/URL.
 
+// Bump on every meaningful change. Surfaced in alerts and the script's success
+// notification so you can verify which version is on the device.
+const SCRIPT_VERSION = "2026-05-05T22:00Z+files"
+
 // Set to true to dump all input sources instead of redirecting.
 const DEBUG = false
 
@@ -17,6 +21,90 @@ const DEFAULT_TARGET_HOST = "xcancel.com"
 const SCHEMELESS_URL_PATTERN =
   /\b(?:(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com)\/[^\s<>"'`)\]}]+)/gi
 const STATUS_PATH_PATTERN = /^\/(?:i\/status\/\d+|[^/]+\/status\/\d+)(?:\/.*)?$/i
+const MAX_FILE_CANDIDATE_CHARS = 300000
+
+// Scriptable's JavaScriptCore does NOT expose the global `URL` constructor, so
+// `new URL(...)` throws ReferenceError in this runtime. parseSupportedUrl is a
+// regex-based stand-in that handles the URL shapes we care about.
+const SUPPORTED_URL_SHAPE =
+  /^(?:https?:\/\/)?((?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com))(\/[^?#]*)?(\?[^#]*)?(#.*)?$/i
+
+function parseSupportedUrl(input) {
+  if (typeof input !== "string") {
+    return null
+  }
+  const match = input.trim().match(SUPPORTED_URL_SHAPE)
+  if (!match) {
+    return null
+  }
+  return {
+    hostname: match[1].toLowerCase(),
+    pathname: match[2] || "/",
+    search: match[3] || "",
+    hash: match[4] || ""
+  }
+}
+
+function buildSupportedUrl({ hostname, pathname, search, hash }) {
+  return `https://${hostname}${pathname}${search}${hash}`
+}
+
+function normalizeFilePath(value) {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (trimmed === "") {
+    return null
+  }
+
+  let path = null
+  if (/^file:\/\//i.test(trimmed)) {
+    path = trimmed.replace(/^file:\/\//i, "")
+    if (path.startsWith("localhost/")) {
+      path = path.slice("localhost".length)
+    }
+    if (!path.startsWith("/")) {
+      path = "/" + path
+    }
+  } else if (trimmed.startsWith("/")) {
+    path = trimmed
+  }
+
+  if (!path) {
+    return null
+  }
+
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return path
+  }
+}
+
+function readFileTextCandidate(value) {
+  const filePath = normalizeFilePath(value)
+  if (!filePath || typeof FileManager === "undefined") {
+    return null
+  }
+
+  try {
+    const fm = FileManager.local()
+    if (typeof fm.fileExists === "function" && !fm.fileExists(filePath)) {
+      return null
+    }
+
+    const text = fm.readString(filePath)
+    if (typeof text !== "string" || text.trim() === "") {
+      return null
+    }
+
+    return text.slice(0, MAX_FILE_CANDIDATE_CHARS)
+  } catch {
+    return null
+  }
+}
 
 function stripTrailingPunctuation(value) {
   return value.replace(/[.,!?;:]+$/u, "")
@@ -56,15 +144,14 @@ function extractFirstSupportedUrl(text) {
       continue
     }
 
-    try {
-      const parsedUrl = new URL(normalizedUrl)
-      const hostname = parsedUrl.hostname.trim().toLowerCase()
+    const parts = parseSupportedUrl(normalizedUrl)
 
-      if (hostname === DEFAULT_TARGET_HOST || TARGET_HOSTS.has(hostname)) {
-        return normalizedUrl
-      }
-    } catch {
+    if (!parts) {
       continue
+    }
+
+    if (parts.hostname === DEFAULT_TARGET_HOST || TARGET_HOSTS.has(parts.hostname)) {
+      return normalizedUrl
     }
   }
 
@@ -78,63 +165,102 @@ function rewriteStatusUrl(rawInput) {
     return null
   }
 
-  let parsedUrl
+  const parts = parseSupportedUrl(candidateUrl)
 
-  try {
-    parsedUrl = new URL(candidateUrl)
-  } catch {
+  if (!parts) {
     return null
   }
 
-  const hostname = parsedUrl.hostname.trim().toLowerCase()
-
-  if (hostname === DEFAULT_TARGET_HOST) {
-    return parsedUrl.toString()
+  if (parts.hostname === DEFAULT_TARGET_HOST) {
+    return buildSupportedUrl(parts)
   }
 
-  if (!TARGET_HOSTS.has(hostname)) {
+  if (!TARGET_HOSTS.has(parts.hostname)) {
     return null
   }
 
-  if (!STATUS_PATH_PATTERN.test(parsedUrl.pathname)) {
-    return parsedUrl.toString()
+  if (!STATUS_PATH_PATTERN.test(parts.pathname)) {
+    return buildSupportedUrl(parts)
   }
 
-  parsedUrl.protocol = "https:"
-  parsedUrl.hostname = DEFAULT_TARGET_HOST
-  parsedUrl.port = ""
+  return buildSupportedUrl({ ...parts, hostname: DEFAULT_TARGET_HOST })
+}
 
-  return parsedUrl.toString()
+function addTextCandidate(candidates, source, value) {
+  const text = String(value).trim()
+  if (text === "") {
+    return
+  }
+
+  candidates.push({ source, value: text })
+
+  const fileText = readFileTextCandidate(text)
+  if (fileText) {
+    candidates.push({ source: `${source}.fileText`, value: fileText })
+  }
+}
+
+function collectStructuredCandidate(candidates, source, value, depth = 0) {
+  if (value === null || value === undefined || depth > 4) {
+    return
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    addTextCandidate(candidates, source, value)
+    return
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      collectStructuredCandidate(candidates, `${source}[${index}]`, item, depth + 1)
+    })
+    return
+  }
+
+  if (typeof value === "object") {
+    for (const [key, val] of Object.entries(value)) {
+      collectStructuredCandidate(candidates, `${source}.${key}`, val, depth + 1)
+    }
+
+    const text = String(value).trim()
+    if (text !== "" && text !== "[object Object]") {
+      addTextCandidate(candidates, source, text)
+    }
+  }
 }
 
 function collectInputCandidates() {
   const candidates = []
 
-  const sp = args.shortcutParameter
-  if (sp !== null && sp !== undefined) {
-    const text = String(sp).trim()
-    if (text !== "") {
-      candidates.push({ source: "shortcutParameter", value: text })
-    }
-  }
+  collectStructuredCandidate(candidates, "shortcutParameter", args.shortcutParameter)
 
   if (args.urls?.length) {
-    for (const u of args.urls) {
-      candidates.push({ source: "args.urls", value: String(u) })
-    }
+    args.urls.forEach((u, index) => {
+      collectStructuredCandidate(candidates, `args.urls[${index}]`, u)
+    })
   }
 
   if (args.plainTexts?.length) {
-    for (const t of args.plainTexts) {
-      candidates.push({ source: "args.plainTexts", value: String(t) })
-    }
+    args.plainTexts.forEach((t, index) => {
+      collectStructuredCandidate(candidates, `args.plainTexts[${index}]`, t)
+    })
+  }
+
+  if (args.fileURLs?.length) {
+    args.fileURLs.forEach((f, index) => {
+      collectStructuredCandidate(candidates, `args.fileURLs[${index}]`, f)
+    })
+  }
+
+  if (args.all?.length) {
+    args.all.forEach((item, index) => {
+      collectStructuredCandidate(candidates, `args.all[${index}]`, item)
+    })
   }
 
   if (args.queryParameters) {
     for (const [key, val] of Object.entries(args.queryParameters)) {
-      if (val) {
-        candidates.push({ source: "queryParam." + key, value: String(val) })
-      }
+      collectStructuredCandidate(candidates, `queryParam.${key}`, val)
     }
   }
 
@@ -162,13 +288,36 @@ function isShortcutContext() {
   return Boolean(config.runsWithSiri || args.shortcutParameter !== null)
 }
 
-async function fail(message) {
+function summarizeCandidates(candidates) {
+  if (candidates.length === 0) {
+    return "no input"
+  }
+  return candidates
+    .map((c) => `${c.source}=${JSON.stringify(c.value).slice(0, 80)}`)
+    .join(" | ")
+}
+
+async function fail(message, candidates = []) {
+  const dump = summarizeCandidates(candidates)
+  const stamped = `${message}\n\nv${SCRIPT_VERSION}\nInputs: ${dump}`
+
   if (isShortcutContext()) {
-    Script.setShortcutOutput(message)
+    Script.setShortcutOutput(stamped)
     return
   }
 
-  await showAlert("Open via xcancel", message)
+  await showAlert(`Open via xcancel v${SCRIPT_VERSION}`, `${message}\n\nInputs: ${dump}`)
+}
+
+function notifyDirectRunSuccess(finalUrl) {
+  try {
+    const notification = new Notification()
+    notification.title = `Open via xcancel v${SCRIPT_VERSION}`
+    notification.body = `Opening ${finalUrl}`
+    notification.schedule()
+  } catch {
+    // Notifications may be denied; opening Safari is the real signal.
+  }
 }
 
 async function main() {
@@ -202,21 +351,30 @@ async function main() {
 
   if (!finalUrl) {
     await fail(
-      "No supported X, Twitter, or xcancel URL was found in the shared input or clipboard."
+      "No supported X, Twitter, or xcancel URL was found in the shared input or clipboard.",
+      candidates
     )
     return
   }
 
   if (isShortcutContext()) {
-    try {
-      Safari.openInApp(finalUrl, false)
-    } catch {
-      Script.setShortcutOutput(finalUrl)
-    }
+    // The script's job is to transform the URL. The host Shortcut opens it via
+    // an "Open URLs" action chained after Run Script — this is the only
+    // reliable way to navigate from a Shortcut context, since Scriptable's
+    // Run Script action runs without a foreground UI surface and
+    // Safari.openInApp() silently fails to present anything.
+    Script.setShortcutOutput(finalUrl)
     return
   }
 
-  Safari.open(finalUrl)
+  notifyDirectRunSuccess(finalUrl)
+
+  try {
+    await Safari.openInApp(finalUrl, false)
+  } catch {
+    // openInApp is the reliable path; fall back to external Safari only on error.
+    Safari.open(finalUrl)
+  }
 }
 
 await main()
