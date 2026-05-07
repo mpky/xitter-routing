@@ -38,7 +38,7 @@ Create a new Shortcut named `Open via xcancel` with these settings:
 
 1. In `Shortcuts`, tap `+`.
 2. Name it `Open via xcancel`.
-3. Open the shortcut details.
+3. Tap the `i` info button at the bottom of the editor to open the shortcut details.
 4. Enable `Show in Share Sheet`.
 5. Set `Accepted Types` to at least `URLs`, `Text`, `Rich Text`, and `Safari Web Pages`.
 6. Turn `Provide Output` off.
