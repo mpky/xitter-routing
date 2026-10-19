@@ -1,13 +1,14 @@
 import {
-  DEFAULT_TARGET_HOST,
+  MIRROR_HOSTS,
   REDIRECT_MODES,
   TARGET_HOSTS,
+  VIEWERS,
   normalizeHostname,
-  rewriteUrl
+  resolveViewerUrl
 } from "../../extension/src/shared/rewriter.js";
 
 const SCHEMELESS_URL_PATTERN =
-  /\b(?:(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com)\/[^\s<>"'`)\]}]+)/gi;
+  /\b(?:(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com|nitter\.net)\/[^\s<>"'`)\]}]+)/gi;
 
 function stripTrailingPunctuation(value) {
   return value.replace(/[.,!?;:]+$/u, "");
@@ -28,11 +29,16 @@ export function normalizeCandidateUrl(value) {
     return trimmed;
   }
 
-  if (/^(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com)\//i.test(trimmed)) {
+  if (/^(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com|nitter\.net)\//i.test(trimmed)) {
     return `https://${trimmed}`;
   }
 
   return null;
+}
+
+function isSupportedHostname(hostname) {
+  const normalized = normalizeHostname(hostname);
+  return TARGET_HOSTS.has(normalized) || MIRROR_HOSTS.has(normalized);
 }
 
 export function extractFirstSupportedUrl(text) {
@@ -48,10 +54,7 @@ export function extractFirstSupportedUrl(text) {
     }
 
     try {
-      const parsedUrl = new URL(normalizedUrl);
-      const hostname = normalizeHostname(parsedUrl.hostname);
-
-      if (hostname === DEFAULT_TARGET_HOST || TARGET_HOSTS.has(hostname)) {
+      if (isSupportedHostname(new URL(normalizedUrl).hostname)) {
         return normalizedUrl;
       }
     } catch {
@@ -62,7 +65,11 @@ export function extractFirstSupportedUrl(text) {
   return null;
 }
 
-export function resolveQuickActionUrl(rawInput) {
+// Post URLs go to X's login-free embed page, or to frontendHost when given.
+// Other X/Twitter URLs are opened as-is in the browser (never the X app),
+// where the extension can take over if it is installed.
+export function resolveQuickActionUrl(rawInput, options = {}) {
+  const { frontendHost = "" } = options;
   const candidateUrl = extractFirstSupportedUrl(rawInput) ?? normalizeCandidateUrl(rawInput);
 
   if (!candidateUrl) {
@@ -79,13 +86,24 @@ export function resolveQuickActionUrl(rawInput) {
 
   const hostname = normalizeHostname(parsedUrl.hostname);
 
-  if (hostname === DEFAULT_TARGET_HOST) {
+  if (frontendHost && hostname === normalizeHostname(frontendHost)) {
     return parsedUrl.toString();
   }
 
-  if (!TARGET_HOSTS.has(hostname)) {
+  if (!isSupportedHostname(hostname)) {
     return null;
   }
 
-  return rewriteUrl(candidateUrl, { redirectMode: REDIRECT_MODES.ALL });
+  const viewerUrl = resolveViewerUrl(candidateUrl, {
+    frontendHost,
+    redirectMode: REDIRECT_MODES.ALL,
+    viewer: frontendHost ? VIEWERS.HOST : VIEWERS.EMBED
+  });
+
+  if (viewerUrl) {
+    return viewerUrl;
+  }
+
+  parsedUrl.protocol = "https:";
+  return parsedUrl.toString();
 }

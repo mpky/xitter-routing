@@ -43,17 +43,17 @@ const FIXTURE_HTML = `<!doctype html>
   </body>
 </html>`
 
-const XCANCEL_FIXTURE_HTML = `<!doctype html>
-<html lang="en">
-  <head><meta charset="utf-8"><title>xcancel fixture</title></head>
-  <body><main>fan-out target</main></body>
-</html>`
-
+// Fan-out tabs open the built-in reader; record which post each one targets.
 const EXPECTED_FAN_OUT_URLS = [
-  "https://xcancel.com/alice/status/300",
-  "https://xcancel.com/bob/status/400",
-  "https://xcancel.com/carol/status/500"
+  "https://x.com/alice/status/300",
+  "https://x.com/bob/status/400",
+  "https://x.com/carol/status/500"
 ]
+
+function getReaderTarget(url) {
+  const match = url.match(/^chrome-extension:\/\/[^/]+\/src\/reader\.html\?url=([^&#]+)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
 
 let bootstrappedPlaywrightRoot = null
 
@@ -170,12 +170,9 @@ async function validateFeedFanOut(redirectMode) {
       })
     })
 
-    await context.route(/^https:\/\/xcancel\.com\//, (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "text/html; charset=utf-8",
-        body: XCANCEL_FIXTURE_HTML
-      })
+    // Keep the reader tabs offline; this check is about which tabs open.
+    await context.route(/^https:\/\/(?:api\.fxtwitter\.com|cdn\.syndication\.twimg\.com|api\.vxtwitter\.com)\//, (route) => {
+      route.fulfill({ status: 503, body: "" })
     })
 
     const serviceWorker = await waitForServiceWorker(context, TIMEOUT_MS)
@@ -192,7 +189,7 @@ async function validateFeedFanOut(redirectMode) {
     })
 
     const observedFanOutUrls = []
-    const observedXcancelHomeRedirects = []
+    const observedHomeRedirects = []
     let observedMaskText = null
     let originalTabClosed = false
 
@@ -204,14 +201,15 @@ async function validateFeedFanOut(redirectMode) {
       }
 
       const url = newPage.url()
+      const readerTarget = getReaderTarget(url)
 
-      if (url === "https://xcancel.com/home") {
-        observedXcancelHomeRedirects.push(url)
+      if (readerTarget) {
+        observedFanOutUrls.push(readerTarget)
         return
       }
 
-      if (url.startsWith("https://xcancel.com/")) {
-        observedFanOutUrls.push(url)
+      if (url !== "about:blank" && !url.startsWith("https://x.com/")) {
+        observedHomeRedirects.push(url)
       }
     })
 
@@ -246,7 +244,7 @@ async function validateFeedFanOut(redirectMode) {
     const fanOutMatches =
       sortedObserved.length === sortedExpected.length &&
       sortedObserved.every((url, index) => url === sortedExpected[index])
-    const homeNotRedirected = observedXcancelHomeRedirects.length === 0
+    const homeNotRedirected = observedHomeRedirects.length === 0
 
     // maskApplied is informational only: the mask is up briefly between
     // applyMask() and the source tab closing, and the post-goto evaluate
@@ -263,7 +261,7 @@ async function validateFeedFanOut(redirectMode) {
       homeNotRedirected,
       observedFanOutUrls: sortedObserved,
       expectedFanOutUrls: sortedExpected,
-      observedXcancelHomeRedirects,
+      observedHomeRedirects,
       originalTabClosed
     }
   } finally {

@@ -15,7 +15,7 @@ export function getUsageText() {
   return [
     "Usage: node scripts/validate-extension.mjs [options]",
     "",
-    "Validates that the unpacked extension rewrites an X/Twitter URL to xcancel.com in Chromium.",
+    "Validates that the unpacked extension routes an X/Twitter URL to its viewer in Chromium.",
     "",
     "Options:",
     "  --url <url>               URL to open for validation",

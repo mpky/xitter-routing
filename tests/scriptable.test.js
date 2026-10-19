@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs"
 // Load the pure URL functions from the Scriptable file.
 // Everything before collectInputCandidates() is pure JS with no Scriptable deps.
 const scriptSource = readFileSync(
-  new URL("../scriptable/open-via-xcancel.js", import.meta.url),
+  new URL("../scriptable/open-tweet.js", import.meta.url),
   "utf-8"
 )
 
@@ -114,24 +114,24 @@ test("handles schemeless URL", () => {
 
 // --- rewriteStatusUrl ---
 
-test("rewrites x.com status URL to xcancel.com", () => {
+test("rewrites x.com status URL to the X embed page", () => {
   assert.equal(
     rewriteStatusUrl("https://x.com/jack/status/20"),
-    "https://xcancel.com/jack/status/20"
+    "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true"
   )
 })
 
-test("rewrites twitter.com status URL to xcancel.com", () => {
+test("rewrites twitter.com status URL to the X embed page", () => {
   assert.equal(
     rewriteStatusUrl("https://twitter.com/user/status/123?s=20"),
-    "https://xcancel.com/user/status/123?s=20"
+    "https://platform.twitter.com/embed/Tweet.html?id=123&dnt=true"
   )
 })
 
 test("rewrites status URL found in surrounding text", () => {
   assert.equal(
     rewriteStatusUrl("Look at this https://x.com/jack/status/20 nice"),
-    "https://xcancel.com/jack/status/20"
+    "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true"
   )
 })
 
@@ -142,10 +142,17 @@ test("returns original URL for non-status X paths", () => {
   )
 })
 
-test("passes through xcancel.com URLs unchanged", () => {
+test("routes dead xcancel.com post links to the X embed page", () => {
   assert.equal(
     rewriteStatusUrl("https://xcancel.com/jack/status/20"),
-    "https://xcancel.com/jack/status/20"
+    "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true"
+  )
+})
+
+test("routes non-post mirror links back to x.com", () => {
+  assert.equal(
+    rewriteStatusUrl("https://nitter.net/jack?tab=media"),
+    "https://x.com/jack?tab=media"
   )
 })
 
@@ -171,13 +178,13 @@ test("handles URL as the only input (normalizeCandidateUrl fallback)", () => {
   // normalizeCandidateUrl handles bare URLs that the regex might miss
   assert.equal(
     rewriteStatusUrl("https://x.com/jack/status/20"),
-    "https://xcancel.com/jack/status/20"
+    "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true"
   )
 })
 
 test("rewrites schemeless URL from text", () => {
   assert.equal(
     rewriteStatusUrl("x.com/jack/status/20"),
-    "https://xcancel.com/jack/status/20"
+    "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true"
   )
 })

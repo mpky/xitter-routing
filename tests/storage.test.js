@@ -72,12 +72,16 @@ test("setSettings preserves existing browser storage values on partial updates",
 
   assert.deepEqual(state, {
     enabled: true,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "all",
     feedFanOut: false,
     feedFanOutCount: 5
   })
   assert.deepEqual(await getSettings(), {
     enabled: true,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "all",
     feedFanOut: false,
     feedFanOutCount: 5
@@ -97,12 +101,16 @@ test("setSettings preserves existing chrome storage values on partial updates", 
 
   assert.deepEqual(state, {
     enabled: false,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: true,
     feedFanOutCount: 7
   })
   assert.deepEqual(await getSettings(), {
     enabled: false,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: true,
     feedFanOutCount: 7
@@ -117,12 +125,16 @@ test("setSettings fills in defaults when storage starts empty", async () => {
 
   assert.deepEqual(state, {
     enabled: false,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: false,
     feedFanOutCount: 5
   })
   assert.deepEqual(await getSettings(), {
     enabled: false,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: false,
     feedFanOutCount: 5
@@ -146,6 +158,8 @@ test("getSettings ignores internal fallback bypass state", async () => {
 
   assert.deepEqual(await getSettings(), {
     enabled: false,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "all",
     feedFanOut: false,
     feedFanOutCount: 5
@@ -163,6 +177,8 @@ test("getSettings clamps feedFanOutCount into the supported range", async () => 
 
   assert.deepEqual(await getSettings(), {
     enabled: true,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: true,
     feedFanOutCount: 20
@@ -180,10 +196,33 @@ test("getSettings falls back to the default count for invalid values", async () 
 
   assert.deepEqual(await getSettings(), {
     enabled: true,
+    viewer: "reader",
+    frontendHost: "",
     redirectMode: "status-only",
     feedFanOut: true,
     feedFanOutCount: 5
   })
+})
+
+test("getSettings normalizes viewer and frontend host values", async () => {
+  withBrowserStorage({
+    viewer: "bogus",
+    frontendHost: " https://Nitter.Example.com/path "
+  })
+  const { getSettings } = await importStorageModule()
+
+  const settings = await getSettings()
+  assert.equal(settings.viewer, "reader")
+  assert.equal(settings.frontendHost, "nitter.example.com")
+})
+
+test("getSettings keeps a valid custom-host viewer", async () => {
+  withBrowserStorage({ viewer: "host", frontendHost: "nitter.example.com" })
+  const { getSettings } = await importStorageModule()
+
+  const settings = await getSettings()
+  assert.equal(settings.viewer, "host")
+  assert.equal(settings.frontendHost, "nitter.example.com")
 })
 
 test("evaluateFeedFanOutCount classifies and clamps values", async () => {
@@ -242,7 +281,7 @@ test("appendDiagnosticLog stores recent normalized diagnostic entries", async ()
 
   await appendDiagnosticLog({
     action: "fallback",
-    source: "xcancel-fallback",
+    source: "reader",
     textSnippet: "   403 Forbidden openresty   ",
     timestamp: 123
   })
@@ -250,7 +289,7 @@ test("appendDiagnosticLog stores recent normalized diagnostic entries", async ()
   assert.deepEqual(await getDiagnosticLog(), [
     {
       action: "fallback",
-      source: "xcancel-fallback",
+      source: "reader",
       textSnippet: "403 Forbidden openresty",
       timestamp: 123
     }
@@ -263,7 +302,7 @@ test("clearDiagnosticLog removes persisted diagnostics", async () => {
     diagnosticLog: [
       {
         action: "observe",
-        source: "xcancel-fallback",
+        source: "reader",
         timestamp: 123
       }
     ]

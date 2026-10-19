@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "X to xcancel Redirect",
-  "version": "0.1.2",
-  "description": "Redirect x.com and twitter.com links to xcancel.com.",
+  "name": "X Routing",
+  "version": "0.2.0",
+  "description": "Open x.com and twitter.com posts in a login-free reader instead of X.",
   "permissions": [
     "contextMenus",
     "storage",
@@ -14,8 +14,9 @@
     "*://*.x.com/*",
     "*://twitter.com/*",
     "*://*.twitter.com/*",
-    "*://xcancel.com/*",
-    "*://*.xcancel.com/*"
+    "https://api.fxtwitter.com/*",
+    "https://cdn.syndication.twimg.com/*",
+    "https://api.vxtwitter.com/*"
   ],
   "background": {
     "service_worker": "src/background.js",
@@ -45,33 +46,21 @@
         "src/content-redirect.js"
       ],
       "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "*://xcancel.com/*",
-        "*://*.xcancel.com/*"
-      ],
-      "js": [
-        "src/content-xcancel-fallback.js"
-      ],
-      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
+        "src/reader.html",
         "src/shared/feed-scraper.js",
         "src/shared/rewriter.js",
-        "src/shared/xcancel-fallback.js",
         "src/storage.js"
       ],
       "matches": [
         "*://x.com/*",
         "*://*.x.com/*",
         "*://twitter.com/*",
-        "*://*.twitter.com/*",
-        "*://xcancel.com/*",
-        "*://*.xcancel.com/*"
+        "*://*.twitter.com/*"
       ]
     }
   ],
@@ -80,6 +69,6 @@
     "open_in_tab": true
   },
   "action": {
-    "default_title": "X to xcancel Redirect"
+    "default_title": "Open this post without X"
   }
 }

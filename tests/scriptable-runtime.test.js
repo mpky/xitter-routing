@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const scriptSource = readFileSync(
-  new URL("../scriptable/open-via-xcancel.js", import.meta.url),
+  new URL("../scriptable/open-tweet.js", import.meta.url),
   "utf-8"
 )
 
@@ -118,12 +118,12 @@ async function runScriptable({
   return captured
 }
 
-test("Share Sheet: x.com status URL via shortcutParameter -> emits xcancel URL as shortcut output", async () => {
+test("Share Sheet: x.com status URL via shortcutParameter -> emits X embed URL as shortcut output", async () => {
   const result = await runScriptable({
     shortcutParameter: "https://x.com/jack/status/20"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
   assert.equal(result.safariInAppOpened, null)
   assert.equal(result.safariOpened, null)
   assert.equal(result.alertShown, null)
@@ -134,7 +134,7 @@ test("Share Sheet: twitter.com status URL with query+fragment preserves both", a
     shortcutParameter: "https://twitter.com/jack/status/20?s=20#frag"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20?s=20#frag")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })
 
 test("Share Sheet: x.com/home stays on X (returned unchanged)", async () => {
@@ -145,12 +145,12 @@ test("Share Sheet: x.com/home stays on X (returned unchanged)", async () => {
   assert.equal(result.shortcutOutput, "https://x.com/home")
 })
 
-test("Share Sheet: existing xcancel.com URL stays as xcancel", async () => {
+test("Share Sheet: dead xcancel.com post link is routed to the X embed page", async () => {
   const result = await runScriptable({
     shortcutParameter: "https://xcancel.com/jack/status/20"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })
 
 test("Share Sheet: status URL embedded in surrounding text gets extracted", async () => {
@@ -158,7 +158,7 @@ test("Share Sheet: status URL embedded in surrounding text gets extracted", asyn
     shortcutParameter: "Check this out https://x.com/jack/status/20 wow"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })
 
 test("Share Sheet: file:// from BackgroundShortcutRunner falls through to next candidate", async () => {
@@ -168,7 +168,7 @@ test("Share Sheet: file:// from BackgroundShortcutRunner falls through to next c
     plainTexts: ["https://x.com/jack/status/20"]
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })
 
 test("Share Sheet: reads URL from temporary rich-text HTML file parameter", async () => {
@@ -181,7 +181,7 @@ test("Share Sheet: reads URL from temporary rich-text HTML file parameter", asyn
     }
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })
 
 test("Share Sheet: reads URL from args.fileURLs when Shortcut passes a file input", async () => {
@@ -194,7 +194,7 @@ test("Share Sheet: reads URL from args.fileURLs when Shortcut passes a file inpu
     }
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20?s=20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
   assert.equal(result.safariInAppOpened, null)
   assert.equal(result.safariOpened, null)
 })
@@ -205,7 +205,7 @@ test("Share Sheet: args.urls is consulted when shortcutParameter has no usable U
     urls: ["https://x.com/alice/status/123"]
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/alice/status/123")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=123&dnt=true")
 })
 
 test("Share Sheet: structured shortcutParameter values are searched recursively", async () => {
@@ -218,7 +218,7 @@ test("Share Sheet: structured shortcutParameter values are searched recursively"
     }
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/listed/status/789")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=789&dnt=true")
 })
 
 test("Share Sheet: URL-like shortcutParameter objects are stringified", async () => {
@@ -230,7 +230,7 @@ test("Share Sheet: URL-like shortcutParameter objects are stringified", async ()
     }
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/object/status/777")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=777&dnt=true")
 })
 
 test("Shortcut action with typed Texts but no main parameter returns shortcut output", async () => {
@@ -239,7 +239,7 @@ test("Shortcut action with typed Texts but no main parameter returns shortcut ou
     plainTexts: ["https://x.com/texts/status/321"]
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/texts/status/321")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=321&dnt=true")
   assert.equal(result.safariInAppOpened, null)
   assert.equal(result.safariOpened, null)
 })
@@ -249,7 +249,7 @@ test("URL-scheme launch: queryParameters fallback works (direct run path opens i
     queryParameters: { url: "https://x.com/bob/status/456" }
   })
 
-  assert.equal(result.safariInAppOpened, "https://xcancel.com/bob/status/456")
+  assert.equal(result.safariInAppOpened, "https://platform.twitter.com/embed/Tweet.html?id=456&dnt=true")
   assert.equal(result.safariOpened, null)
 })
 
@@ -258,11 +258,11 @@ test("Direct Scriptable run: clipboard fallback rewrites and opens in Scriptable
     clipboard: "https://x.com/jack/status/20"
   })
 
-  assert.equal(result.safariInAppOpened, "https://xcancel.com/jack/status/20")
+  assert.equal(result.safariInAppOpened, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
   assert.equal(result.safariOpened, null)
   assert.equal(result.notifications.length, 1)
-  assert.match(result.notifications[0].title, /^Open via xcancel v/)
-  assert.match(result.notifications[0].body, /Opening https:\/\/xcancel\.com\/jack\/status\/20/)
+  assert.match(result.notifications[0].title, /^Open Tweet v/)
+  assert.match(result.notifications[0].body, /Opening https:\/\/platform\.twitter\.com\/embed\/Tweet\.html\?id=20/)
 })
 
 test("Direct Scriptable run: falls back to external Safari if openInApp throws", async () => {
@@ -271,7 +271,7 @@ test("Direct Scriptable run: falls back to external Safari if openInApp throws",
     failOpenInApp: true
   })
 
-  assert.equal(result.safariOpened, "https://xcancel.com/jack/status/20")
+  assert.equal(result.safariOpened, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
   assert.equal(result.safariInAppOpened, null)
 })
 
@@ -284,7 +284,7 @@ test("Shortcut context with no usable input writes failure to shortcut output", 
   assert.equal(result.safariOpened, null)
   assert.match(
     result.shortcutOutput ?? "",
-    /No supported X, Twitter, or xcancel URL/
+    /No supported X or Twitter URL/
   )
 })
 
@@ -295,10 +295,10 @@ test("Direct run with no usable input shows version-stamped alert", async () => 
 
   assert.equal(result.safariInAppOpened, null)
   assert.equal(result.safariOpened, null)
-  assert.match(result.alertShown?.title ?? "", /^Open via xcancel v/)
+  assert.match(result.alertShown?.title ?? "", /^Open Tweet v/)
   assert.match(
     result.alertShown?.message ?? "",
-    /No supported X, Twitter, or xcancel URL/
+    /No supported X or Twitter URL/
   )
 })
 
@@ -317,7 +317,7 @@ test("First valid candidate wins: shortcutParameter beats clipboard", async () =
     clipboard: "https://x.com/second/status/2"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/first/status/1")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=1&dnt=true")
 })
 
 test("Schemeless URL in shortcutParameter still gets rewritten", async () => {
@@ -325,5 +325,5 @@ test("Schemeless URL in shortcutParameter still gets rewritten", async () => {
     shortcutParameter: "x.com/jack/status/20"
   })
 
-  assert.equal(result.shortcutOutput, "https://xcancel.com/jack/status/20")
+  assert.equal(result.shortcutOutput, "https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true")
 })

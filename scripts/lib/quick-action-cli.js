@@ -1,21 +1,25 @@
-import { extractFirstSupportedUrl, resolveQuickActionUrl } from "./open-via-xcancel.js";
+import { normalizeFrontendHost } from "../../extension/src/shared/rewriter.js";
+import { extractFirstSupportedUrl, resolveQuickActionUrl } from "./open-tweet.js";
 
 export const DEFAULT_BROWSER_NAME = "Google Chrome";
-export const NO_URL_FOUND_MESSAGE = "No supported X, Twitter, or xcancel URL was found.";
+export const NO_URL_FOUND_MESSAGE = "No supported X or Twitter URL was found.";
 export const UNKNOWN_OPTION_PREFIX = "Unknown option:";
 
 export function getUsageText() {
   return [
-    "Usage: open-via-xcancel.mjs [--print-only] [--browser <app-name>|default] [text-or-url]",
+    "Usage: open-tweet.mjs [--print-only] [--browser <app-name>|default] [--host <frontend-host>] [text-or-url]",
     "",
-    "Accepts text/URLs from arguments, stdin, or the macOS clipboard."
+    "Accepts text/URLs from arguments, stdin, or the macOS clipboard.",
+    "Post links open in X's login-free embed page unless --host (or",
+    "XITTER_FRONTEND_HOST) names a Nitter-style frontend to use instead."
   ].join("\n");
 }
 
-export function parseCliArgs(argv) {
+export function parseCliArgs(argv, env = {}) {
   const values = [];
   let printOnly = false;
   let browserName = DEFAULT_BROWSER_NAME;
+  let frontendHost = normalizeFrontendHost(env.XITTER_FRONTEND_HOST ?? "");
 
   for (let index = 0; index < argv.length; index += 1) {
     const current = argv[index];
@@ -39,6 +43,27 @@ export function parseCliArgs(argv) {
       continue;
     }
 
+    if (current === "--host") {
+      const nextValue = argv[index + 1];
+
+      if (!nextValue || nextValue.startsWith("-")) {
+        return {
+          error: "Missing value for --host."
+        };
+      }
+
+      frontendHost = normalizeFrontendHost(nextValue);
+
+      if (!frontendHost) {
+        return {
+          error: `Invalid frontend host: ${nextValue}`
+        };
+      }
+
+      index += 1;
+      continue;
+    }
+
     if (current === "--help" || current === "-h") {
       return {
         help: true
@@ -56,6 +81,7 @@ export function parseCliArgs(argv) {
 
   return {
     browserName,
+    frontendHost,
     printOnly,
     values
   };
@@ -124,13 +150,14 @@ export function selectRawInput(values, stdinValue, clipboardValue) {
 export async function runQuickAction(argv, dependencies = {}) {
   const {
     clipboardValue,
+    env = {},
     openUrl = async () => {},
     readClipboard = async () => "",
     readStdin = async () => "",
     stdinValue
   } = dependencies;
 
-  const parsedArgs = parseCliArgs(argv);
+  const parsedArgs = parseCliArgs(argv, env);
 
   if (parsedArgs.help) {
     return {
@@ -153,7 +180,9 @@ export async function runQuickAction(argv, dependencies = {}) {
     resolvedStdinValue,
     resolvedClipboardValue
   );
-  const finalUrl = resolveQuickActionUrl(rawInput);
+  const finalUrl = resolveQuickActionUrl(rawInput, {
+    frontendHost: parsedArgs.frontendHost
+  });
 
   if (!finalUrl) {
     return {

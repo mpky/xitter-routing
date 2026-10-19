@@ -1,5 +1,5 @@
 import { isFeedUrl } from "./shared/feed-scraper.js";
-import { rewriteUrl } from "./shared/rewriter.js";
+import { resolveViewerUrl } from "./shared/rewriter.js";
 import {
   DEFAULT_SETTINGS,
   appendDiagnosticLog,
@@ -12,8 +12,9 @@ const extensionApi = globalThis.browser ?? globalThis.chrome;
 const browserApi = globalThis.browser ?? null;
 const chromeApi = globalThis.chrome ?? null;
 const pendingRedirects = new Map();
-const MENU_OPEN_LINK = "open-link-via-xcancel";
-const MENU_OPEN_PAGE = "open-page-via-xcancel";
+const MENU_OPEN_LINK = "open-link-in-viewer";
+const MENU_OPEN_PAGE = "open-page-in-viewer";
+const READER_BASE_URL = extensionApi.runtime.getURL("src/reader.html");
 
 function updateTab(tabId, updateProperties) {
   if (browserApi?.tabs?.update) {
@@ -134,7 +135,7 @@ async function shouldRedirect(url) {
     return null;
   }
 
-  return rewriteUrl(url, { redirectMode: settings.redirectMode });
+  return resolveViewerUrl(url, { ...settings, readerBaseUrl: READER_BASE_URL });
 }
 
 function logFanOutEvent(action, fields) {
@@ -223,12 +224,12 @@ async function createContextMenus() {
   await removeAllMenus(menusApi);
   await createMenu(menusApi, {
     id: MENU_OPEN_LINK,
-    title: "Open link via xcancel",
+    title: "Open link without X",
     contexts: ["link"]
   });
   await createMenu(menusApi, {
     id: MENU_OPEN_PAGE,
-    title: "Open page via xcancel",
+    title: "Open page without X",
     contexts: ["page"]
   });
 }

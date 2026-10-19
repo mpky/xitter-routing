@@ -42,6 +42,7 @@ async function openUrl(url, browserName) {
 
 async function main() {
   const result = await runQuickAction(process.argv.slice(2), {
+    env: process.env,
     openUrl,
     readClipboard,
     readStdin

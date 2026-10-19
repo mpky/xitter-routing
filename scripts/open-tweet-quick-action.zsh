@@ -4,4 +4,4 @@ set -euo pipefail
 
 SCRIPT_DIR=${0:A:h}
 
-"$SCRIPT_DIR/open-via-xcancel.mjs" "$@"
+"$SCRIPT_DIR/open-tweet.mjs" "$@"

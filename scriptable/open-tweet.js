@@ -1,12 +1,20 @@
-// Open via xcancel for Scriptable on iOS
+// Open Tweet for Scriptable on iOS
 // Run from Scriptable directly or via a Shortcut that passes input text/URL.
+//
+// Post links become X's login-free embed page
+// (platform.twitter.com/embed/Tweet.html), which Safari renders without an X
+// login and which the X app does not claim as a universal link.
 
 // Bump on every meaningful change. Surfaced in alerts and the script's success
 // notification so you can verify which version is on the device.
-const SCRIPT_VERSION = "2026-05-05T22:00Z+files"
+const SCRIPT_VERSION = "2026-10-19T00:00Z+embed"
 
 // Set to true to dump all input sources instead of redirecting.
 const DEBUG = false
+
+// Optional: a Nitter-style frontend host (e.g. "nitter.example.com"). When
+// set, post links are rewritten onto it instead of the X embed page.
+const FRONTEND_HOST = ""
 
 const TARGET_HOSTS = new Set([
   "x.com",
@@ -17,17 +25,26 @@ const TARGET_HOSTS = new Set([
   "mobile.twitter.com"
 ])
 
-const DEFAULT_TARGET_HOST = "xcancel.com"
+// Former Nitter mirrors, offline since X's 2026 legal action. Old links to
+// them still circulate, so treat them as X links.
+const MIRROR_HOSTS = new Set([
+  "xcancel.com",
+  "www.xcancel.com",
+  "nitter.net",
+  "www.nitter.net"
+])
+
+const EMBED_BASE_URL = "https://platform.twitter.com/embed/Tweet.html"
 const SCHEMELESS_URL_PATTERN =
-  /\b(?:(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com)\/[^\s<>"'`)\]}]+)/gi
-const STATUS_PATH_PATTERN = /^\/(?:i\/status\/\d+|[^/]+\/status\/\d+)(?:\/.*)?$/i
+  /\b(?:(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com|nitter\.net)\/[^\s<>"'`)\]}]+)/gi
+const STATUS_PATH_PATTERN = /^\/(?:i\/status\/(\d+)|[^/]+\/status\/(\d+))(?:\/.*)?$/i
 const MAX_FILE_CANDIDATE_CHARS = 300000
 
 // Scriptable's JavaScriptCore does NOT expose the global `URL` constructor, so
 // `new URL(...)` throws ReferenceError in this runtime. parseSupportedUrl is a
 // regex-based stand-in that handles the URL shapes we care about.
 const SUPPORTED_URL_SHAPE =
-  /^(?:https?:\/\/)?((?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com))(\/[^?#]*)?(\?[^#]*)?(#.*)?$/i
+  /^(?:https?:\/\/)?((?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com|nitter\.net))(\/[^?#]*)?(\?[^#]*)?(#.*)?$/i
 
 function parseSupportedUrl(input) {
   if (typeof input !== "string") {
@@ -125,7 +142,7 @@ function normalizeCandidateUrl(value) {
     return trimmed
   }
 
-  if (/^(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com)\//i.test(trimmed)) {
+  if (/^(?:www\.|mobile\.)?(?:x\.com|twitter\.com|xcancel\.com|nitter\.net)\//i.test(trimmed)) {
     return `https://${trimmed}`
   }
 
@@ -150,12 +167,16 @@ function extractFirstSupportedUrl(text) {
       continue
     }
 
-    if (parts.hostname === DEFAULT_TARGET_HOST || TARGET_HOSTS.has(parts.hostname)) {
+    if (MIRROR_HOSTS.has(parts.hostname) || TARGET_HOSTS.has(parts.hostname)) {
       return normalizedUrl
     }
   }
 
   return null
+}
+
+function buildEmbedUrl(id) {
+  return `${EMBED_BASE_URL}?id=${encodeURIComponent(id)}&dnt=true`
 }
 
 function rewriteStatusUrl(rawInput) {
@@ -171,19 +192,26 @@ function rewriteStatusUrl(rawInput) {
     return null
   }
 
-  if (parts.hostname === DEFAULT_TARGET_HOST) {
-    return buildSupportedUrl(parts)
-  }
+  const fromMirror = MIRROR_HOSTS.has(parts.hostname)
 
-  if (!TARGET_HOSTS.has(parts.hostname)) {
+  if (!fromMirror && !TARGET_HOSTS.has(parts.hostname)) {
     return null
   }
 
-  if (!STATUS_PATH_PATTERN.test(parts.pathname)) {
-    return buildSupportedUrl(parts)
+  const statusMatch = parts.pathname.match(STATUS_PATH_PATTERN)
+
+  if (!statusMatch) {
+    // Non-post X links stay on X; dead mirror links go back to X.
+    return buildSupportedUrl(fromMirror ? { ...parts, hostname: "x.com" } : parts)
   }
 
-  return buildSupportedUrl({ ...parts, hostname: DEFAULT_TARGET_HOST })
+  const frontendHost = FRONTEND_HOST.trim().toLowerCase()
+
+  if (frontendHost !== "") {
+    return buildSupportedUrl({ ...parts, hostname: frontendHost })
+  }
+
+  return buildEmbedUrl(statusMatch[1] ?? statusMatch[2])
 }
 
 function addTextCandidate(candidates, source, value) {
@@ -306,13 +334,13 @@ async function fail(message, candidates = []) {
     return
   }
 
-  await showAlert(`Open via xcancel v${SCRIPT_VERSION}`, `${message}\n\nInputs: ${dump}`)
+  await showAlert(`Open Tweet v${SCRIPT_VERSION}`, `${message}\n\nInputs: ${dump}`)
 }
 
 function notifyDirectRunSuccess(finalUrl) {
   try {
     const notification = new Notification()
-    notification.title = `Open via xcancel v${SCRIPT_VERSION}`
+    notification.title = `Open Tweet v${SCRIPT_VERSION}`
     notification.body = `Opening ${finalUrl}`
     notification.schedule()
   } catch {
@@ -330,7 +358,7 @@ async function main() {
     })), null, 2)
 
     const fm = FileManager.iCloud()
-    const debugPath = fm.joinPath(fm.documentsDirectory(), "xcancel-debug.json")
+    const debugPath = fm.joinPath(fm.documentsDirectory(), "open-tweet-debug.json")
     fm.writeString(debugPath, dump)
 
     if (isShortcutContext()) {
@@ -351,7 +379,7 @@ async function main() {
 
   if (!finalUrl) {
     await fail(
-      "No supported X, Twitter, or xcancel URL was found in the shared input or clipboard.",
+      "No supported X or Twitter URL was found in the shared input or clipboard.",
       candidates
     )
     return

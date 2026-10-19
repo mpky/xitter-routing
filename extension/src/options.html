@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>X to xcancel Redirect</title>
+    <title>X Routing</title>
     <style>
       :root {
         color-scheme: light;
@@ -75,6 +75,7 @@
       }
 
       select,
+      input[type="text"],
       input[type="number"] {
         width: 100%;
         max-width: 20rem;
@@ -154,25 +155,48 @@
   <body>
     <main>
       <section class="card">
-        <h1>X to xcancel Redirect</h1>
+        <h1>X Routing</h1>
         <p>
-          When enabled, the extension rewrites top-level browser navigations from
-          <code>x.com</code> and <code>twitter.com</code> onto <code>xcancel.com</code>.
+          When enabled, the extension sends <code>x.com</code> and
+          <code>twitter.com</code> post links to a viewer that works without an
+          X login. Old <code>xcancel.com</code> and <code>nitter.net</code>
+          links are routed the same way.
         </p>
         <label for="enabled">
           <input id="enabled" type="checkbox">
           Enable redirect
         </label>
         <div class="field">
+          <label for="viewer">Viewer</label>
+          <select id="viewer">
+            <option value="reader">Built-in reader</option>
+            <option value="embed">X embed page</option>
+            <option value="host">Custom frontend host</option>
+          </select>
+          <p>
+            <strong>Built-in reader</strong> loads the post from FxTwitter, X's
+            embed backend, or vxTwitter (first that answers) and renders it here.
+            <strong>X embed page</strong> opens <code>platform.twitter.com</code>'s
+            login-free embed. Both handle post links only.
+          </p>
+        </div>
+        <div class="field" id="frontend-host-field">
+          <label for="frontend-host">Frontend host</label>
+          <input id="frontend-host" type="text" placeholder="nitter.example.com" spellcheck="false" autocomplete="off">
+          <p>
+            Any Nitter-style mirror that keeps X's URL paths. Used only with
+            <strong>Custom frontend host</strong>.
+          </p>
+        </div>
+        <div class="field" id="redirect-mode-field">
           <label for="redirect-mode">Redirect mode</label>
           <select id="redirect-mode">
             <option value="status-only">Status links only</option>
             <option value="all">All X/Twitter URLs</option>
           </select>
           <p>
-            Use <strong>Status links only</strong> if you still want to browse
-            <code>x.com</code> intentionally without being pushed onto
-            <code>xcancel.com</code>.
+            Applies to a custom frontend host. Use <strong>Status links only</strong>
+            if you still want to browse <code>x.com</code> intentionally.
           </p>
         </div>
         <label for="feed-fan-out">
@@ -182,7 +206,7 @@
         <p>
           When you visit <code>x.com</code>, <code>x.com/home</code>, or
           <code>x.com/i/timeline</code>, mask the feed, grab the top posts,
-          and open each one as its own <code>xcancel.com</code> tab.
+          and open each one in its own viewer tab.
         </p>
         <div class="field">
           <label for="feed-fan-out-count">Posts to fan out</label>

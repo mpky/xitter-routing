@@ -2,6 +2,10 @@
 
 This is the recommended iOS setup.
 
+## Upgrading from the xcancel version
+
+xcancel and Nitter were shut down by X in September 2026. If you already have the old `Open via xcancel` script and Shortcut, you only need to do one thing: open the `Open via xcancel` script in Scriptable, replace its contents with [scriptable/open-tweet.js](../scriptable/open-tweet.js), and save. The Shortcut keeps working unchanged because it refers to the script by name. Post links now open in X's login-free embed page instead of xcancel.
+
 Instead of building the rewrite logic inside Shortcuts, keep the logic in one Scriptable script and use a thin Share Sheet Shortcut to launch it.
 
 That is easier to set up, easier to edit later, and easier to keep in sync with the repo.
@@ -9,16 +13,16 @@ That is easier to set up, easier to edit later, and easier to keep in sync with 
 ## What You Need
 
 - the `Scriptable` app installed on your iPhone
-- the script in [scriptable/open-via-xcancel.js](../scriptable/open-via-xcancel.js)
+- the script in [scriptable/open-tweet.js](../scriptable/open-tweet.js)
 - an optional Shortcut launcher for the Share Sheet
 
 ## Behavior
 
 - accepts shared URLs or text
 - falls back to the clipboard if no input is passed
-- rewrites supported X/Twitter status URLs to `xcancel.com`
-- preserves path, query string, and fragment
-- leaves existing `xcancel.com` URLs alone
+- turns X/Twitter post URLs into X's login-free embed page, `https://platform.twitter.com/embed/Tweet.html?id=<post id>&dnt=true`; Safari renders it without an X login, and the X app doesn't claim it as a universal link
+- if `FRONTEND_HOST` at the top of the script is set (for example a Nitter instance that comes back online), rewrites post URLs onto that host instead and keeps the path, query string, and fragment
+- routes old `xcancel.com` and `nitter.net` links the same way
 - leaves non-status X/Twitter URLs alone
 - returns the final URL to Shortcuts when run from the Share Sheet
 - opens the final URL directly when run inside Scriptable
@@ -26,18 +30,18 @@ That is easier to set up, easier to edit later, and easier to keep in sync with 
 ## Step 1: Add the Scriptable Script
 
 1. Open `Scriptable` on your iPhone.
-2. Create a new script named `Open via xcancel`.
-3. Copy the contents of [scriptable/open-via-xcancel.js](../scriptable/open-via-xcancel.js) into it.
+2. Create a new script named `Open Tweet`.
+3. Copy the contents of [scriptable/open-tweet.js](../scriptable/open-tweet.js) into it.
 4. Save the script.
 
 You can test it immediately in Scriptable by copying a URL like `https://x.com/jack/status/20` to the clipboard and running the script.
 
 ## Step 2: Create the Shortcut Launcher
 
-Create a new Shortcut named `Open via xcancel` with these settings:
+Create a new Shortcut named `Open Tweet` with these settings:
 
 1. In `Shortcuts`, tap `+`.
-2. Name it `Open via xcancel`.
+2. Name it `Open Tweet`.
 3. Tap the `i` info button at the bottom of the editor to open the shortcut details.
 4. Enable `Show in Share Sheet`.
 5. Set `Accepted Types` to at least `URLs`, `Text`, `Rich Text`, and `Safari Web Pages`.
@@ -49,7 +53,7 @@ Add these actions:
    Use `Shortcut Input`.
 2. `Run Script`
    Configure:
-   - `Script`: `Open via xcancel`
+   - `Script`: `Open Tweet`
    - `Parameter`: the output of step 1
    - `Run In App`: off
    - `Show When Run`: off
@@ -75,7 +79,7 @@ The Shortcut launcher is still recommended because it can normalize rich text be
 
 ## Troubleshooting
 
-### `No supported X, Twitter, or xcancel URL was found`
+### `No supported X or Twitter URL was found`
 
 Update the script on your iPhone to the latest repo copy, then run the Shortcut again. The failure text includes the script version and a short dump of what Scriptable received.
 
@@ -92,10 +96,10 @@ If you need to debug the Shortcut input, temporarily insert `Show Result` after 
 
 After setup, test:
 
-1. Share `https://x.com/jack/status/20` and confirm Safari opens `https://xcancel.com/jack/status/20`
-2. Share `https://twitter.com/jack/status/20?s=20#frag` and confirm query and fragment survive
+1. Share `https://x.com/jack/status/20` and confirm Safari opens `https://platform.twitter.com/embed/Tweet.html?id=20&dnt=true` and shows the post
+2. Share `https://twitter.com/jack/status/20?s=20#frag` and confirm it opens the same embed page
 3. Share `https://x.com/home` and confirm it stays on X
-4. Share `https://xcancel.com/jack/status/20` and confirm it still opens normally
+4. Share `https://xcancel.com/jack/status/20` and confirm it opens the embed page
 5. Copy a supported URL to the clipboard and run the script directly in Scriptable to confirm the clipboard fallback works
 
 ## Notes

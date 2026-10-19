@@ -1,14 +1,16 @@
-# spec.md - X/Twitter to xcancel Redirect Tools
+# spec.md - X/Twitter Routing Tools
+
+> **Revision (2026-10):** `xcancel.com` and the public Nitter instances were shut down by X Corp in September 2026. The tools no longer depend on one mirror host. Post URLs go to a **viewer** (see §2.5): the extension's built-in reader, X's login-free embed page, or an optional user-chosen frontend host. Where older sections below say "rewrite to `xcancel.com`", read it as "route to the configured viewer".
 
 ## 0. Goal
 
-When the user encounters an `x.com` or `twitter.com` link, open the equivalent URL on `xcancel.com` in a browser instead of sending the user into the X app.
+When the user encounters an `x.com` or `twitter.com` link, open the post in a browser-based, login-free viewer instead of sending the user into the X app.
 
 The user still wants to keep the X app installed and usable for intentional app launches.
 
 Examples:
-- `https://x.com/user/status/123` -> `https://xcancel.com/user/status/123`
-- `https://twitter.com/user/status/123?s=20&t=abc#frag` -> `https://xcancel.com/user/status/123?s=20&t=abc#frag`
+- `https://x.com/user/status/123` -> built-in reader for `https://x.com/user/status/123` (extension)
+- `https://twitter.com/user/status/123?s=20&t=abc#frag` -> `https://platform.twitter.com/embed/Tweet.html?id=123&dnt=true` (iOS / macOS helper)
 
 Non-goals:
 - Modifying behavior inside the X app.
@@ -53,13 +55,21 @@ Both tools should share the same pure URL rewriter module and test cases.
 - If URL parsing fails, do nothing.
 - If hostname is not in the supported input set, do nothing.
 
-### 2.4 Reference Behavior
+### 2.5 Viewers
+
+- `reader` (extension default): `src/reader.html?url=<canonical x.com status URL>`. Fetches the post from, in order, `api.fxtwitter.com`, `cdn.syndication.twimg.com/tweet-result`, `api.vxtwitter.com`; renders the first success; on total failure shows the per-source errors and an **Open on X** button, which registers a short-lived bypass so the redirect doesn't loop.
+- `embed` (iOS / macOS helper default): `https://platform.twitter.com/embed/Tweet.html?id=<id>&dnt=true`.
+- `host`: domain swap onto a user-supplied frontend; path, query, and fragment preserved; honors the status-only / all redirect mode. Falls back to `reader` when no host is set.
+- `reader` and `embed` handle status URLs only.
+- Former mirror hosts (`xcancel.com`, `nitter.net`) are accepted as input: status links go to the viewer, other links go back to `x.com`.
+
+### 2.4 Reference Behavior (custom frontend host)
 
 Input:
 `http://mobile.twitter.com/user/status/123?s=20#frag`
 
-Output:
-`https://xcancel.com/user/status/123?s=20#frag`
+Output (frontend host `nitter.example.com`):
+`https://nitter.example.com/user/status/123?s=20#frag`
 
 ---
 
@@ -88,7 +98,7 @@ Primary path:
 - Safari-side redirect when navigation reaches Safari
 
 Fallback path:
-- Share Sheet Shortcut named `Open via xcancel`
+- Share Sheet Shortcut named `Open Tweet`
 
 The extension is the automatic layer. The shortcut is the escape hatch for apps that keep links inside their own in-app browser or hand links directly to the X app.
 
@@ -157,7 +167,7 @@ HS-iOS-4. The existence of the X app must not be treated as an error condition. 
 ### 3.7.2 Fallback Flow
 
 1. User long-presses or shares the link
-2. User runs `Open via xcancel`
+2. User runs `Open Tweet`
 3. Shortcut rewrites URL
 4. Shortcut opens Safari on `xcancel.com`
 
@@ -218,7 +228,7 @@ Primary path:
 
 Optional helper path:
 - Small native macOS app or menu bar utility
-- Provides `Open via xcancel` service / quick action
+- Provides `Open Tweet` service / quick action
 - Can rewrite a copied URL and open the browser explicitly
 
 The browser extension is the core product. The native helper exists to cover workflows where a browser extension never gets a chance to inspect the URL.
@@ -264,8 +274,8 @@ FR-mac-6. Optional helper app can accept a URL from Services, clipboard, or manu
 
 ### 4.5.5 Quick Action Helper Implementation
 
-- Repo-owned helper script: `scripts/open-via-xcancel.mjs`
-- Automator-friendly wrapper script: `scripts/open-via-xcancel-quick-action.zsh`
+- Repo-owned helper script: `scripts/open-tweet.mjs`
+- Automator-friendly wrapper script: `scripts/open-tweet-quick-action.zsh`
 - Input sources:
   - selected text passed as arguments from Automator
   - stdin
@@ -299,7 +309,7 @@ FR-mac-6. Optional helper app can accept a URL from Services, clipboard, or manu
 ### 4.6.2 Helper Flow
 
 1. User right-clicks or copies a link
-2. User invokes `Open via xcancel`
+2. User invokes `Open Tweet`
 3. Helper rewrites URL
 4. Helper opens browser on `xcancel.com`
 

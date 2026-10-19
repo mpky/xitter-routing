@@ -7,7 +7,7 @@
 
   const [
     { appendDiagnosticLog, clearFallbackBypass, getSettings, hasFallbackBypass },
-    { rewriteUrl },
+    { resolveViewerUrl },
     { isFeedUrl }
   ] = await Promise.all([
     import(extensionApi.runtime.getURL("src/storage.js")),
@@ -36,8 +36,9 @@
     return
   }
 
-  const rewrittenUrl = rewriteUrl(window.location.href, {
-    redirectMode: settings.redirectMode
+  const rewrittenUrl = resolveViewerUrl(window.location.href, {
+    ...settings,
+    readerBaseUrl: extensionApi.runtime.getURL("src/reader.html")
   })
 
   if (rewrittenUrl && rewrittenUrl !== window.location.href) {
@@ -45,6 +46,7 @@
       action: "redirect",
       source: "content-redirect",
       redirectMode: settings.redirectMode,
+      viewer: settings.viewer,
       rewrittenUrl,
       timestamp: Date.now(),
       url: window.location.href

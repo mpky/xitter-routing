@@ -7,9 +7,14 @@ import {
   getSettings,
   setSettings
 } from "./storage.js"
+import { VIEWERS, normalizeFrontendHost } from "./shared/rewriter.js"
 import { BUILD_INFO } from "./build-info.js"
 
 const enabledInput = document.querySelector("#enabled")
+const viewerInput = document.querySelector("#viewer")
+const frontendHostInput = document.querySelector("#frontend-host")
+const frontendHostField = document.querySelector("#frontend-host-field")
+const redirectModeField = document.querySelector("#redirect-mode-field")
 const redirectModeInput = document.querySelector("#redirect-mode")
 const feedFanOutInput = document.querySelector("#feed-fan-out")
 const feedFanOutCountInput = document.querySelector("#feed-fan-out-count")
@@ -21,6 +26,12 @@ const clearDiagnosticsButton = document.querySelector("#clear-diagnostics")
 
 function setStatus(message) {
   statusNode.textContent = message
+}
+
+function syncViewerFields(viewer) {
+  const usesHost = viewer === VIEWERS.HOST
+  frontendHostField.hidden = !usesHost
+  redirectModeField.hidden = !usesHost
 }
 
 function renderBuildStamp() {
@@ -76,6 +87,9 @@ async function initialize() {
   renderBuildStamp()
   const settings = await getSettings()
   enabledInput.checked = settings.enabled
+  viewerInput.value = settings.viewer
+  frontendHostInput.value = settings.frontendHost
+  syncViewerFields(settings.viewer)
   redirectModeInput.value = settings.redirectMode
   feedFanOutInput.checked = settings.feedFanOut
   feedFanOutCountInput.min = String(FEED_FAN_OUT_MIN)
@@ -89,6 +103,37 @@ enabledInput.addEventListener("change", async (event) => {
   const enabled = event.currentTarget.checked
   await setSettings({ enabled })
   setStatus(enabled ? "Redirect enabled." : "Redirect disabled.")
+})
+
+viewerInput.addEventListener("change", async (event) => {
+  const viewer = event.currentTarget.value
+  await setSettings({ viewer })
+  syncViewerFields(viewer)
+
+  if (viewer === VIEWERS.HOST && !normalizeFrontendHost(frontendHostInput.value)) {
+    setStatus("Enter a frontend host; until then the built-in reader is used.")
+  } else if (viewer === VIEWERS.EMBED) {
+    setStatus("Opening posts in X's embed page.")
+  } else if (viewer === VIEWERS.HOST) {
+    setStatus(`Opening links on ${normalizeFrontendHost(frontendHostInput.value)}.`)
+  } else {
+    setStatus("Opening posts in the built-in reader.")
+  }
+})
+
+frontendHostInput.addEventListener("change", async (event) => {
+  const frontendHost = normalizeFrontendHost(event.currentTarget.value)
+  const typed = event.currentTarget.value.trim()
+  event.currentTarget.value = frontendHost
+  await setSettings({ frontendHost })
+
+  if (typed !== "" && frontendHost === "") {
+    setStatus("That doesn't look like a hostname (and it can't be x.com itself).")
+  } else if (frontendHost === "") {
+    setStatus("Frontend host cleared; the built-in reader is used.")
+  } else {
+    setStatus(`Frontend host set to ${frontendHost}.`)
+  }
 })
 
 redirectModeInput.addEventListener("change", async (event) => {

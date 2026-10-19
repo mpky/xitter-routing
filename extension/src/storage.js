@@ -1,5 +1,9 @@
+import { VIEWERS, normalizeFrontendHost } from "./shared/rewriter.js"
+
 export const DEFAULT_SETTINGS = Object.freeze({
   enabled: true,
+  viewer: VIEWERS.READER,
+  frontendHost: "",
   redirectMode: "status-only",
   feedFanOut: false,
   feedFanOutCount: 5
@@ -207,11 +211,17 @@ function clampFeedFanOutCount(value) {
   return evaluateFeedFanOutCount(value).value
 }
 
+function normalizeViewer(value) {
+  return Object.values(VIEWERS).includes(value) ? value : DEFAULT_SETTINGS.viewer
+}
+
 export async function getSettings() {
   const result = await getStorageItems(DEFAULT_SETTINGS)
 
   return {
     enabled: result.enabled ?? DEFAULT_SETTINGS.enabled,
+    viewer: normalizeViewer(result.viewer),
+    frontendHost: normalizeFrontendHost(result.frontendHost),
     redirectMode: result.redirectMode ?? DEFAULT_SETTINGS.redirectMode,
     feedFanOut: result.feedFanOut ?? DEFAULT_SETTINGS.feedFanOut,
     feedFanOutCount: clampFeedFanOutCount(

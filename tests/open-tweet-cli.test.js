@@ -59,12 +59,28 @@ test("selectRawInput falls back from stdin to clipboard", () => {
   });
 });
 
+test("parseCliArgs validates --host values", () => {
+  assert.deepEqual(parseCliArgs(["--host"]), { error: "Missing value for --host." });
+  assert.deepEqual(parseCliArgs(["--host", "x.com"]), { error: "Invalid frontend host: x.com" });
+  assert.equal(parseCliArgs(["--host", "https://Nitter.Example.com/"]).frontendHost, "nitter.example.com");
+});
+
+test("parseCliArgs reads XITTER_FRONTEND_HOST and lets --host override it", () => {
+  assert.equal(parseCliArgs([], { XITTER_FRONTEND_HOST: "a.example" }).frontendHost, "a.example");
+  assert.equal(
+    parseCliArgs(["--host", "b.example"], { XITTER_FRONTEND_HOST: "a.example" }).frontendHost,
+    "b.example"
+  );
+});
+
 test("runQuickAction prints usage for help", async () => {
   const result = await runQuickAction(["--help"]);
 
   assert.equal(result.exitCode, 0);
   assert.equal(result.stderr, `${getUsageText()}\n`);
 });
+
+const EMBED = (id) => `https://platform.twitter.com/embed/Tweet.html?id=${id}&dnt=true`;
 
 test("runQuickAction opens the rewritten URL in Chrome by default", async () => {
   const opened = [];
@@ -75,11 +91,11 @@ test("runQuickAction opens the rewritten URL in Chrome by default", async () => 
   });
 
   assert.equal(result.exitCode, 0);
-  assert.equal(result.finalUrl, "https://xcancel.com/jack/status/20");
+  assert.equal(result.finalUrl, EMBED(20));
   assert.deepEqual(opened, [
     {
       browserName: DEFAULT_BROWSER_NAME,
-      url: "https://xcancel.com/jack/status/20"
+      url: EMBED(20)
     }
   ]);
 });
@@ -95,7 +111,7 @@ test("runQuickAction supports print-only without opening a browser", async () =>
   assert.equal(result.exitCode, 0);
   assert.equal(result.opened, false);
   assert.equal(didOpen, false);
-  assert.equal(result.stdout, "https://xcancel.com/home\n");
+  assert.equal(result.stdout, "https://x.com/home\n");
 });
 
 test("runQuickAction uses stdin when arguments are absent", async () => {
@@ -106,7 +122,7 @@ test("runQuickAction uses stdin when arguments are absent", async () => {
 
   assert.equal(result.exitCode, 0);
   assert.equal(result.source, "stdin");
-  assert.equal(result.finalUrl, "https://xcancel.com/from-stdin/status/1");
+  assert.equal(result.finalUrl, EMBED(1));
 });
 
 test("runQuickAction uses clipboard as the final fallback", async () => {
@@ -117,7 +133,7 @@ test("runQuickAction uses clipboard as the final fallback", async () => {
 
   assert.equal(result.exitCode, 0);
   assert.equal(result.source, "clipboard");
-  assert.equal(result.finalUrl, "https://xcancel.com/jack");
+  assert.equal(result.finalUrl, "https://twitter.com/jack");
 });
 
 test("runQuickAction respects the default-browser override", async () => {
@@ -135,9 +151,18 @@ test("runQuickAction respects the default-browser override", async () => {
   assert.deepEqual(opened, [
     {
       browserName: "default",
-      url: "https://xcancel.com/jack/status/20"
+      url: EMBED(20)
     }
   ]);
+});
+
+test("runQuickAction rewrites onto a frontend host from the environment", async () => {
+  const result = await runQuickAction(["--print-only", "https://x.com/jack/status/20"], {
+    env: { XITTER_FRONTEND_HOST: "nitter.example.com" }
+  });
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.finalUrl, "https://nitter.example.com/jack/status/20");
 });
 
 test("runQuickAction returns an error when no supported URL is found", async () => {

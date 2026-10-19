@@ -148,7 +148,7 @@
   const [
     { getSettings },
     { collectTweetCandidates, isFeedUrl, pickTopPosts },
-    { rewriteUrl }
+    { resolveViewerUrl }
   ] = await Promise.all([
     storageImport,
     import(extensionApi.runtime.getURL("src/shared/feed-scraper.js")),
@@ -173,7 +173,13 @@
   const xUrls = await waitForCandidates({ collectTweetCandidates, pickTopPosts }, count);
 
   const rewrittenUrls = xUrls
-    .map((url) => rewriteUrl(url, { redirectMode: "all" }))
+    .map((url) =>
+      resolveViewerUrl(url, {
+        ...settings,
+        readerBaseUrl: extensionApi.runtime.getURL("src/reader.html"),
+        redirectMode: "all"
+      })
+    )
     .filter((url) => typeof url === "string" && url !== "");
 
   if (rewrittenUrls.length === 0) {

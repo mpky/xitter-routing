@@ -62,13 +62,21 @@ async function ensurePlaywrightImport() {
   }
 }
 
+const X_HOST_PATTERN = /^https?:\/\/(?:(?:www|mobile)\.)?(?:x|twitter)\.com(?:[/:?#]|$)/i
+
+// Redirected means the tab left X for a viewer: the built-in reader
+// (chrome-extension://…/src/reader.html), the X embed page, or a custom host.
+function isRedirectedUrl(url) {
+  return url !== "" && url !== "about:blank" && !X_HOST_PATTERN.test(url)
+}
+
 async function waitForRedirect(page, timeoutMs) {
   const startedAt = Date.now()
 
   while (Date.now() - startedAt < timeoutMs) {
     const currentUrl = page.url()
 
-    if (currentUrl.startsWith("https://xcancel.com/")) {
+    if (isRedirectedUrl(currentUrl)) {
       return currentUrl
     }
 
@@ -79,7 +87,7 @@ async function waitForRedirect(page, timeoutMs) {
 }
 
 function getValidationOutcome(finalUrl, expectedBehavior) {
-  const redirected = finalUrl.startsWith("https://xcancel.com/")
+  const redirected = isRedirectedUrl(finalUrl)
 
   if (expectedBehavior === EXPECTED_BEHAVIORS.NO_REDIRECT) {
     return {

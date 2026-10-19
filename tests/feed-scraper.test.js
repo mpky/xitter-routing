@@ -30,7 +30,7 @@ test("FEED_PATHS exposes the canonical feed entry points", () => {
   assert.equal(FEED_PATHS.has("/i/timeline"), true);
 });
 
-test("pickTopPosts normalizes status paths to xcancel-ready x.com URLs", () => {
+test("pickTopPosts normalizes status paths to canonical x.com URLs", () => {
   const candidates = [
     { statusPath: "/jack/status/20" },
     { statusPath: "/i/status/777" },
